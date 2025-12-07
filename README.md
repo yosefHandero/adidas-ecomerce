@@ -1,36 +1,150 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Adidas E-Commerce
 
-## Getting Started
+A modern e-commerce application built with Next.js 15, TypeScript, Drizzle ORM, and PocketBase.
 
-First, run the development server:
+## 🚀 Features
+
+- ✅ Full authentication with PocketBase
+- ✅ Product catalog with categories and variants
+- ✅ Shopping cart with persistence
+- ✅ Checkout flow
+- ✅ Order management
+- ✅ Responsive design
+- ✅ Type-safe with TypeScript
+
+## 📋 Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- PocketBase instance (local or hosted)
+
+## 🛠️ Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Environment Variables
+
+Create a `.env.local` file:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/adidas_db"
+
+# PocketBase
+POCKETBASE_URL="http://127.0.0.1:8090"
+NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
+```
+
+### 3. Set Up PocketBase
+
+1. Download PocketBase from [pocketbase.io](https://pocketbase.io)
+2. Run PocketBase: `./pocketbase serve`
+3. Access admin UI at `http://127.0.0.1:8090/_/`
+4. Create collections:
+   - **users** (default collection)
+   - **carts** (with `user` relation field)
+
+### 4. Set Up Database
+
+```bash
+# Push schema to database
+npm run db:push
+
+# Seed sample data
+npm run seed
+```
+
+### 5. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/              # Next.js app router pages and API routes
+├── components/       # React components
+├── db/              # Drizzle schema and connection
+├── lib/             # Utilities (PocketBase, auth)
+└── stores/          # Zustand state management
+```
 
-## Learn More
+## 🗄️ Database
 
-To learn more about Next.js, take a look at the following resources:
+This project uses:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Drizzle ORM** for type-safe database queries
+- **PostgreSQL** as the database
+- **PocketBase** for authentication and cart storage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Database Commands
 
-## Deploy on Vercel
+```bash
+npm run db:generate  # Generate migration files
+npm run db:migrate   # Run migrations
+npm run db:push      # Push schema directly
+npm run db:studio    # Open Drizzle Studio
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔐 Authentication
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Authentication is handled by PocketBase:
+
+- Sign up at `/auth/signup`
+- Sign in at `/auth/login`
+- User menu in header
+- Protected API routes
+
+## 🛒 Cart System
+
+- LocalStorage persistence for guests
+- PocketBase sync for authenticated users
+- Real-time cart updates
+- Quantity management
+
+## 📚 Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL + Drizzle ORM
+- **Auth**: PocketBase
+- **State**: Zustand
+- **Styling**: Tailwind CSS
+
+## 📖 Documentation
+
+See [MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md) for detailed migration and architecture documentation.
+
+## 🚢 Deployment
+
+### PocketBase
+
+Deploy PocketBase to:
+
+- Render
+- Railway
+- Fly.io
+- Or self-host
+
+Update `POCKETBASE_URL` and `NEXT_PUBLIC_POCKETBASE_URL` in production.
+
+### Next.js
+
+Deploy to:
+
+- Vercel (recommended)
+- Netlify
+- Railway
+- Or any Node.js hosting
+
+## 📝 License
+
+MIT
