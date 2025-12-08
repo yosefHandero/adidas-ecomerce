@@ -34,9 +34,9 @@ export function AddToCartButton({
     setIsAdding(true);
     try {
       const variant = productVariants?.find((v) => v.id === selectedVariant);
-      const finalPrice = variant?.priceCents || priceCents;
+      const finalPrice = variant?.priceCents ?? priceCents;
 
-      addItem({
+      await addItem({
         productId,
         variantId: selectedVariant,
         name,
@@ -46,23 +46,10 @@ export function AddToCartButton({
         imageUrl,
       });
 
-      // Sync with server if authenticated
-      try {
-        await fetch("/api/cart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId,
-            variantId: selectedVariant,
-            quantity,
-          }),
-        });
-      } catch (error) {
-        console.error("Failed to sync cart with server:", error);
-      }
-
-      // Reset quantity
+      // Reset quantity after successful add
       setQuantity(1);
+    } catch (error) {
+      console.error("Failed to add item to cart:", error);
     } finally {
       setIsAdding(false);
     }
@@ -72,17 +59,21 @@ export function AddToCartButton({
     <div className="flex flex-col gap-4">
       {productVariants && productVariants.length > 0 && (
         <div>
-          <label className="block text-sm font-medium mb-2">
+          <label
+            htmlFor="variant-select"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Select Variant
           </label>
           <select
+            id="variant-select"
             value={selectedVariant || ""}
             onChange={(e) =>
               setSelectedVariant(
                 e.target.value ? parseInt(e.target.value) : undefined
               )
             }
-            className="w-full border rounded-lg px-4 py-2"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
           >
             <option value="">Default</option>
             {productVariants.map((variant) => (
@@ -100,18 +91,21 @@ export function AddToCartButton({
       )}
 
       <div className="flex items-center gap-4">
-        <label className="text-sm font-medium">Quantity:</label>
+        <label className="text-sm font-medium text-gray-700">Quantity:</label>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
+            className="w-9 h-9 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={quantity <= 1}
           >
             -
           </button>
-          <span className="w-12 text-center">{quantity}</span>
+          <span className="w-12 text-center font-medium">{quantity}</span>
           <button
+            type="button"
             onClick={() => setQuantity(quantity + 1)}
-            className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
+            className="w-9 h-9 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition"
           >
             +
           </button>

@@ -60,13 +60,27 @@ export async function POST(request: NextRequest) {
       shippingCents = 0,
     } = body;
 
-    if (!items || items.length === 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
-    if (!customerEmail || !customerName) {
+    if (!customerEmail || !customerEmail.includes('@')) {
       return NextResponse.json(
-        { error: 'Customer email and name are required' },
+        { error: 'Valid customer email is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!customerName || customerName.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Customer name is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!subtotalCents || subtotalCents < 0) {
+      return NextResponse.json(
+        { error: 'Invalid subtotal' },
         { status: 400 }
       );
     }
@@ -94,13 +108,21 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Create order items
+    // Validate and create order items
+    const validItems = items.filter((item: any) => 
+      item.productId && item.quantity > 0 && item.priceCents > 0
+    );
+
+    if (validItems.length === 0) {
+      return NextResponse.json({ error: 'No valid items in cart' }, { status: 400 });
+    }
+
     await db.insert(orderItems).values(
-      items.map((item: any) => ({
+      validItems.map((item: any) => ({
         orderId: order.id,
         productId: item.productId,
         variantId: item.variantId || null,
-        productName: item.name,
+        productName: item.name || 'Unknown Product',
         variantName: item.variantName || null,
         quantity: item.quantity,
         priceCents: item.priceCents,
@@ -112,8 +134,9 @@ export async function POST(request: NextRequest) {
       try {
         const cart = await pb.collection('carts').getFirstListItem(`user="${user.id}"`);
         await pb.collection('carts').update(cart.id, { items: [] });
-      } catch {
-        // Cart doesn't exist, ignore
+      } catch (error) {
+        // Cart doesn't exist or error clearing, ignore
+        console.warn('Failed to clear cart after order:', error);
       }
     }
 

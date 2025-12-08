@@ -11,7 +11,19 @@ export const authClient = {
    */
   async signUp(email: string, password: string, passwordConfirm: string, name?: string) {
     const pb = getPocketBaseClient();
-    const data: any = {
+    
+    // Validation
+    if (!email || !email.includes('@')) {
+      throw new Error('Valid email is required');
+    }
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters');
+    }
+    if (password !== passwordConfirm) {
+      throw new Error('Passwords do not match');
+    }
+    
+    const data: Record<string, unknown> = {
       email,
       password,
       passwordConfirm,
@@ -19,10 +31,16 @@ export const authClient = {
     if (name) {
       data.name = name;
     }
-    const record = await pb.collection('users').create(data);
-    await pb.collection('users').authWithPassword(email, password);
-    persistAuth(pb);
-    return record;
+    
+    try {
+      const record = await pb.collection('users').create(data);
+      await pb.collection('users').authWithPassword(email, password);
+      persistAuth(pb);
+      return record;
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Failed to sign up';
+      throw new Error(message);
+    }
   },
 
   /**
@@ -30,9 +48,23 @@ export const authClient = {
    */
   async signIn(email: string, password: string) {
     const pb = getPocketBaseClient();
-    const authData = await pb.collection('users').authWithPassword(email, password);
-    persistAuth(pb);
-    return authData;
+    
+    // Validation
+    if (!email || !email.includes('@')) {
+      throw new Error('Valid email is required');
+    }
+    if (!password) {
+      throw new Error('Password is required');
+    }
+    
+    try {
+      const authData = await pb.collection('users').authWithPassword(email, password);
+      persistAuth(pb);
+      return authData;
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Invalid email or password';
+      throw new Error(message);
+    }
   },
 
   /**
@@ -50,16 +82,24 @@ export const authClient = {
    * Get current user
    */
   getCurrentUser() {
-    const pb = getPocketBaseClient();
-    return pb.authStore.model;
+    try {
+      const pb = getPocketBaseClient();
+      return pb.authStore.model;
+    } catch {
+      return null;
+    }
   },
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated() {
-    const pb = getPocketBaseClient();
-    return pb.authStore.isValid;
+    try {
+      const pb = getPocketBaseClient();
+      return pb.authStore.isValid;
+    } catch {
+      return false;
+    }
   },
 
   /**

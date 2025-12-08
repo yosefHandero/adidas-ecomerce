@@ -5,6 +5,7 @@ import { useCart } from "@/stores/cart/useCart";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
+import Link from "next/link";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -35,9 +36,23 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (items.length === 0) {
+      router.push("/cart");
+    }
+  }, [items.length, router]);
+
   if (items.length === 0) {
-    router.push("/cart");
-    return null;
+    return (
+      <main className="max-w-4xl mx-auto p-6">
+        <div className="text-center py-12">
+          <p className="text-gray-600 mb-4">Your cart is empty</p>
+          <Link href="/cart">
+            <Button>Go to Cart</Button>
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   const subtotal = getTotal();
@@ -86,111 +101,152 @@ export default function CheckoutPage() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Checkout</h1>
+    <main className="max-w-6xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-8"
       >
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">
+              Shipping Information
+            </h2>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              value={formData.customerName}
-              onChange={(e) =>
-                setFormData({ ...formData, customerName: e.target.value })
-              }
-              required
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="customerName"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
+                  Full Name *
+                </label>
+                <input
+                  id="customerName"
+                  type="text"
+                  value={formData.customerName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, customerName: e.target.value })
+                  }
+                  required
+                  autoComplete="name"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+                  placeholder="John Doe"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Email *</label>
-            <input
-              type="email"
-              value={formData.customerEmail}
-              onChange={(e) =>
-                setFormData({ ...formData, customerEmail: e.target.value })
-              }
-              required
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="customerEmail"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
+                  Email *
+                </label>
+                <input
+                  id="customerEmail"
+                  type="email"
+                  value={formData.customerEmail}
+                  onChange={(e) =>
+                    setFormData({ ...formData, customerEmail: e.target.value })
+                  }
+                  required
+                  autoComplete="email"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+                  placeholder="you@example.com"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Shipping Address *
-            </label>
-            <textarea
-              value={formData.shippingAddress}
-              onChange={(e) =>
-                setFormData({ ...formData, shippingAddress: e.target.value })
-              }
-              required
-              rows={4}
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="shippingAddress"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
+                  Shipping Address *
+                </label>
+                <textarea
+                  id="shippingAddress"
+                  value={formData.shippingAddress}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      shippingAddress: e.target.value,
+                    })
+                  }
+                  required
+                  rows={4}
+                  autoComplete="street-address"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition resize-none"
+                  placeholder="123 Main St, City, State, ZIP"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Billing Address
-            </label>
-            <textarea
-              value={formData.billingAddress}
-              onChange={(e) =>
-                setFormData({ ...formData, billingAddress: e.target.value })
-              }
-              rows={4}
-              className="w-full border rounded-lg px-4 py-2"
-            />
+              <div>
+                <label
+                  htmlFor="billingAddress"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
+                  Billing Address
+                </label>
+                <textarea
+                  id="billingAddress"
+                  value={formData.billingAddress}
+                  onChange={(e) =>
+                    setFormData({ ...formData, billingAddress: e.target.value })
+                  }
+                  rows={4}
+                  autoComplete="billing street-address"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition resize-none"
+                  placeholder="Leave blank to use shipping address"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
         <div>
-          <div className="border rounded-lg p-6 sticky top-24">
-            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-            <div className="space-y-2 mb-4">
+          <div className="border border-gray-200 rounded-xl p-6 sticky top-24 bg-white shadow-sm">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">
+              Order Summary
+            </h2>
+            <div className="space-y-3 mb-6">
               {items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
+                <div
+                  key={item.id}
+                  className="flex justify-between text-sm text-gray-700"
+                >
                   <span>
-                    {item.name} × {item.quantity}
+                    {item.name} {item.variantName && `(${item.variantName})`} ×{" "}
+                    {item.quantity}
                   </span>
-                  <span>
+                  <span className="font-medium">
                     ${((item.priceCents * item.quantity) / 100).toFixed(2)}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="border-t pt-2 space-y-2 mb-4">
-              <div className="flex justify-between">
+            <div className="border-t border-gray-200 pt-4 space-y-3 mb-6">
+              <div className="flex justify-between text-gray-700">
                 <span>Subtotal</span>
                 <span>${(subtotal / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-gray-700">
                 <span>Tax</span>
                 <span>${(tax / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-gray-700">
                 <span>Shipping</span>
                 <span>
                   {shipping === 0 ? "Free" : `$${(shipping / 100).toFixed(2)}`}
                 </span>
               </div>
-              <div className="border-t pt-2 flex justify-between font-semibold text-lg">
+              <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-lg text-gray-900">
                 <span>Total</span>
                 <span>${(total / 100).toFixed(2)}</span>
               </div>

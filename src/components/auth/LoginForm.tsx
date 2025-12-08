@@ -4,6 +4,7 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -18,54 +19,88 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      await authClient.signIn(email, password);
+      await authClient.signIn(email.trim(), password);
       router.refresh();
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to sign in";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 max-w-md mx-auto p-6"
-    >
-      <h2 className="text-2xl font-bold mb-4">Sign In</h2>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+    <div className="w-full max-w-md mx-auto">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-gray-200 rounded-xl shadow-sm p-8 space-y-6"
+      >
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h2>
+          <p className="text-sm text-gray-600">Welcome back to Adidas</p>
         </div>
-      )}
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full border rounded-lg px-4 py-2"
-        />
-      </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full border rounded-lg px-4 py-2"
-        />
-      </div>
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+              placeholder="you@example.com"
+            />
+          </div>
 
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? "Signing in..." : "Sign In"}
-      </Button>
-    </form>
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={isLoading} className="w-full" size="lg">
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
+
+        <div className="text-center text-sm text-gray-600">
+          Don't have an account?{" "}
+          <Link
+            href="/auth/signup"
+            className="text-black font-medium hover:underline"
+          >
+            Sign up
+          </Link>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -41,73 +41,105 @@ export default async function OrderPage({
 
   const o = order[0];
 
+  if (items.length === 0) {
+    return (
+      <main className="max-w-4xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">Order Details</h1>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800">No items found for this order.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Order Confirmation</h1>
+      <h1 className="text-3xl font-bold mb-8">Order Confirmation</h1>
 
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-        <p className="text-green-800 font-medium">
+      <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+        <p className="text-green-800 font-medium text-lg">
           Thank you for your order! Your order number is{" "}
           <span className="font-bold">{o.orderNumber}</span>
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Order Details</h2>
-          <div className="space-y-1 text-sm">
-            <p>
-              <span className="font-medium">Status:</span> {o.status}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">
+            Order Details
+          </h2>
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-700">
+              <span className="font-medium text-gray-900">Status:</span>{" "}
+              <span className="capitalize">{o.status}</span>
             </p>
-            <p>
-              <span className="font-medium">Date:</span>{" "}
-              {new Date(o.createdAt).toLocaleDateString()}
+            <p className="text-gray-700">
+              <span className="font-medium text-gray-900">Date:</span>{" "}
+              {new Date(o.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
-            <p>
-              <span className="font-medium">Email:</span> {o.customerEmail}
+            <p className="text-gray-700">
+              <span className="font-medium text-gray-900">Email:</span>{" "}
+              {o.customerEmail}
             </p>
           </div>
         </div>
 
         {o.shippingAddress && (
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Shipping Address</h2>
-            <p className="text-sm whitespace-pre-line">{o.shippingAddress}</p>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">
+              Shipping Address
+            </h2>
+            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+              {o.shippingAddress}
+            </p>
           </div>
         )}
       </div>
 
-      <div className="border rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Order Items</h2>
-        <div className="space-y-4">
+      <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+        <h2 className="text-xl font-semibold mb-6 text-gray-900">
+          Order Items
+        </h2>
+        <div className="space-y-4 mb-6">
           {items.map((item) => (
-            <div key={item.id} className="flex justify-between items-center">
+            <div
+              key={item.id}
+              className="flex justify-between items-start pb-4 border-b border-gray-100 last:border-0 last:pb-0"
+            >
               <div>
-                <p className="font-medium">{item.productName}</p>
+                <p className="font-semibold text-gray-900 mb-1">
+                  {item.productName}
+                </p>
                 {item.variantName && (
-                  <p className="text-sm text-gray-600">{item.variantName}</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {item.variantName}
+                  </p>
                 )}
                 <p className="text-sm text-gray-600">
                   Quantity: {item.quantity}
                 </p>
               </div>
-              <p className="font-semibold">
+              <p className="font-semibold text-gray-900 text-lg">
                 ${((item.priceCents * item.quantity) / 100).toFixed(2)}
               </p>
             </div>
           ))}
         </div>
 
-        <div className="border-t mt-4 pt-4 space-y-2">
-          <div className="flex justify-between">
+        <div className="border-t border-gray-200 pt-6 space-y-3">
+          <div className="flex justify-between text-gray-700">
             <span>Subtotal</span>
             <span>${(o.subtotalCents / 100).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-gray-700">
             <span>Tax</span>
             <span>${(o.taxCents / 100).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-gray-700">
             <span>Shipping</span>
             <span>
               {o.shippingCents === 0
@@ -115,7 +147,7 @@ export default async function OrderPage({
                 : `$${(o.shippingCents / 100).toFixed(2)}`}
             </span>
           </div>
-          <div className="flex justify-between font-semibold text-lg border-t pt-2">
+          <div className="flex justify-between font-semibold text-lg border-t border-gray-200 pt-3 text-gray-900">
             <span>Total</span>
             <span>${(o.totalCents / 100).toFixed(2)}</span>
           </div>

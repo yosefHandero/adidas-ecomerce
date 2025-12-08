@@ -4,7 +4,10 @@ import PocketBase from 'pocketbase';
 export function getPocketBase() {
   const url = process.env.POCKETBASE_URL || process.env.NEXT_PUBLIC_POCKETBASE_URL;
   if (!url) {
-    throw new Error('POCKETBASE_URL or NEXT_PUBLIC_POCKETBASE_URL environment variable is not set');
+    throw new Error(
+      'POCKETBASE_URL or NEXT_PUBLIC_POCKETBASE_URL environment variable is not set. ' +
+      'Please set it in your .env.local file.'
+    );
   }
   return new PocketBase(url);
 }

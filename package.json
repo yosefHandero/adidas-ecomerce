@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:fix-products": "tsx ./scripts/migrate-products.ts",
     "seed": "tsx ./scripts/seed.ts"
   },
   "dependencies": {

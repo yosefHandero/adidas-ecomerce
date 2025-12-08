@@ -23,15 +23,15 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to frontend format
-    const items = (cart.expand?.items || []).map((item: any) => ({
-      id: item.id,
-      productId: item.product,
-      variantId: item.variant || undefined,
-      name: item.expand?.product?.name || '',
-      variantName: item.expand?.variant ? `${item.expand.variant.name}: ${item.expand.variant.value}` : undefined,
-      priceCents: item.priceCents,
-      quantity: item.quantity,
-      imageUrl: item.expand?.product?.imageUrl || undefined,
+    const items = (cart.expand?.items || cart.items || []).map((item: any) => ({
+      id: item.id || `${item.product}-${item.variant || 'default'}-${Date.now()}`,
+      productId: item.product || item.productId,
+      variantId: item.variant || item.variantId || undefined,
+      name: item.expand?.product?.name || item.name || '',
+      variantName: item.expand?.variant ? `${item.expand.variant.name}: ${item.expand.variant.value}` : item.variantName || undefined,
+      priceCents: item.priceCents || 0,
+      quantity: item.quantity || 1,
+      imageUrl: item.expand?.product?.imageUrl || item.imageUrl || undefined,
     }));
 
     return NextResponse.json({ items });
@@ -89,29 +89,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Ensure items array exists
+    const currentItems = Array.isArray(cart.items) ? cart.items : [];
+    
     // Check if item already exists
-    const existingItem = cart.items?.find(
-      (item: any) => item.product === productId && item.variant === variantId
+    const existingItem = currentItems.find(
+      (item: any) => 
+        (item.product === productId || item.productId === productId) && 
+        ((item.variant === variantId && variantId) || (!item.variant && !variantId))
     );
 
     if (existingItem) {
       // Update quantity
-      const updatedItems = cart.items.map((item: any) =>
-        item.id === existingItem.id
-          ? { ...item, quantity: item.quantity + quantity }
+      const updatedItems = currentItems.map((item: any) =>
+        (item.id === existingItem.id || (item.product === productId && item.variant === variantId))
+          ? { ...item, quantity: (item.quantity || 1) + quantity, priceCents }
           : item
       );
       await pb.collection('carts').update(cart.id, { items: updatedItems });
     } else {
       // Add new item
       const newItem = {
+        id: `${productId}-${variantId || 'default'}-${Date.now()}`,
         product: productId,
         variant: variantId || null,
         quantity,
         priceCents,
       };
       await pb.collection('carts').update(cart.id, {
-        items: [...(cart.items || []), newItem],
+        items: [...currentItems, newItem],
       });
     }
 
@@ -142,7 +148,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     const cart = await pb.collection('carts').getFirstListItem(`user="${user.id}"`);
-    const updatedItems = cart.items.filter((item: any) => item.id !== itemId);
+    const currentItems = Array.isArray(cart.items) ? cart.items : [];
+    const updatedItems = currentItems.filter((item: any) => item.id !== itemId);
 
     await pb.collection('carts').update(cart.id, { items: updatedItems });
 
@@ -178,8 +185,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const cart = await pb.collection('carts').getFirstListItem(`user="${user.id}"`);
-    const updatedItems = cart.items.map((item: any) =>
-      item.id === itemId ? { ...item, quantity } : item
+    const currentItems = Array.isArray(cart.items) ? cart.items : [];
+    const updatedItems = currentItems.map((item: any) =>
+      item.id === itemId ? { ...item, quantity: Math.max(1, quantity) } : item
     );
 
     await pb.collection('carts').update(cart.id, { items: updatedItems });

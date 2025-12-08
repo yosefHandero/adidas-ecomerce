@@ -30,44 +30,95 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       items: [],
       
-      addItem: (item) => {
+      addItem: async (item) => {
         const items = get().items;
         const existingIndex = items.findIndex(
           (i) => i.productId === item.productId && i.variantId === item.variantId
         );
 
+        let updatedItems: CartItem[];
         if (existingIndex >= 0) {
           // Update quantity if item already exists
-          const updated = [...items];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity + item.quantity,
+          updatedItems = [...items];
+          updatedItems[existingIndex] = {
+            ...updatedItems[existingIndex],
+            quantity: updatedItems[existingIndex].quantity + item.quantity,
           };
-          set({ items: updated });
         } else {
           // Add new item
           const newItem: CartItem = {
             ...item,
             id: `${item.productId}-${item.variantId || 'default'}-${Date.now()}`,
           };
-          set({ items: [...items, newItem] });
+          updatedItems = [...items, newItem];
+        }
+        
+        set({ items: updatedItems });
+
+        // Sync with server if authenticated
+        try {
+          const response = await fetch('/api/cart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            }),
+          });
+          
+          if (!response.ok && response.status !== 401) {
+            // If not auth error, sync back from server
+            await get().syncWithServer();
+          }
+        } catch (error) {
+          // Silently fail - cart still works locally
+          console.warn('Failed to sync cart to server:', error);
         }
       },
 
-      removeItem: (id) => {
-        set({ items: get().items.filter((item) => item.id !== id) });
+      removeItem: async (id) => {
+        const items = get().items;
+        const itemToRemove = items.find((item) => item.id === id);
+        const updatedItems = items.filter((item) => item.id !== id);
+        set({ items: updatedItems });
+
+        // Sync with server if authenticated
+        if (itemToRemove) {
+          try {
+            await fetch(`/api/cart?itemId=${id}`, {
+              method: 'DELETE',
+              credentials: 'include',
+            });
+          } catch (error) {
+            console.warn('Failed to remove item from server:', error);
+          }
+        }
       },
 
-      updateQuantity: (id, quantity) => {
+      updateQuantity: async (id, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(id);
+          await get().removeItem(id);
           return;
         }
-        set({
-          items: get().items.map((item) =>
-            item.id === id ? { ...item, quantity } : item
-          ),
-        });
+        
+        const updatedItems = get().items.map((item) =>
+          item.id === id ? { ...item, quantity } : item
+        );
+        set({ items: updatedItems });
+
+        // Sync with server if authenticated
+        try {
+          await fetch('/api/cart', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ itemId: id, quantity }),
+          });
+        } catch (error) {
+          console.warn('Failed to update quantity on server:', error);
+        }
       },
 
       clearCart: () => {
@@ -88,15 +139,18 @@ export const useCart = create<CartState>()(
       syncWithServer: async () => {
         // Sync cart with PocketBase if user is authenticated
         try {
-          const response = await fetch('/api/cart');
+          const response = await fetch('/api/cart', {
+            credentials: 'include',
+          });
           if (response.ok) {
             const data = await response.json();
-            if (data.items) {
+            if (data.items && Array.isArray(data.items)) {
               set({ items: data.items });
             }
           }
         } catch (error) {
           console.error('Failed to sync cart:', error);
+          // Don't throw, just log - allow offline cart usage
         }
       },
     }),
