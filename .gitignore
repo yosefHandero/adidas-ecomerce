@@ -28,6 +28,9 @@
 .idea/
 .expo/
 
+# Windows reserved names
+nul
+
 # debug
 npm-debug.log*
 yarn-debug.log*
