@@ -20,7 +20,278 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background-attachment: fixed;
+  color: #1f2937;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Smooth transitions */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* Premium Mannequin Canvas Background */
+.mannequin-canvas {
+  position: relative;
+}
+
+.mannequin-background {
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 60%),
+    linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  position: relative;
+}
+
+.mannequin-background::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.01) 2px,
+      rgba(0, 0, 0, 0.01) 4px
+    );
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.mannequin-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    rgba(0, 0, 0, 0.03) 100%
+  );
+  pointer-events: none;
+}
+
+/* Premium Idle Animation - Breathing + Weight Shift */
+@keyframes breathing {
+  0%, 100% {
+    transform: scaleY(1) scaleX(1);
+  }
+  50% {
+    transform: scaleY(1.015) scaleX(1.01);
+  }
+}
+
+@keyframes weightShift {
+  0%, 100% {
+    transform: translateX(0px) translateY(0px);
+  }
+  25% {
+    transform: translateX(-1px) translateY(1px);
+  }
+  50% {
+    transform: translateX(0px) translateY(2px);
+  }
+  75% {
+    transform: translateX(1px) translateY(1px);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.3;
+    filter: blur(20px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: blur(25px);
+  }
+}
+
+.mannequin-idle-premium {
+  animation: 
+    breathing 4s ease-in-out infinite,
+    weightShift 6s ease-in-out infinite;
+}
+
+.mannequin-idle-premium::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.1) 0%,
+    transparent 70%
+  );
+  animation: glowPulse 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Awakening Animation - Walk 1-2 Steps */
+@keyframes awakening {
+  0% {
+    transform: translateX(0px) translateY(0px) rotate(0deg);
+  }
+  20% {
+    transform: translateX(2px) translateY(-1px) rotate(0.5deg);
+  }
+  40% {
+    transform: translateX(0px) translateY(-2px) rotate(0deg);
+  }
+  60% {
+    transform: translateX(-2px) translateY(-1px) rotate(-0.5deg);
+  }
+  80% {
+    transform: translateX(0px) translateY(0px) rotate(0deg);
+  }
+  100% {
+    transform: translateX(0px) translateY(0px) rotate(0deg);
+  }
+}
+
+.mannequin-awakening {
+  animation: awakening 1.2s ease-in-out;
+}
+
+/* 3D Perspective Container */
+.mannequin-canvas {
+  perspective: 1000px;
+  perspective-origin: center center;
+}
+
+/* Continuous Spin Animation - Horizontal rotation */
+@keyframes spin {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+.mannequin-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scale the image on hover */
+.mannequin-container .mannequin-image {
+  transform: scale(1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mannequin-container:hover .mannequin-image {
+  transform: scale(1.25);
+}
+
+/* Simple mannequin image styling */
+.mannequin-image {
+  display: block;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+}
+
+/* Circular mannequin with 3D dark blue shadow effect */
+.mannequin-circular {
+  border-radius: 100% !important;
+  box-shadow: 
+    0 20px 40px rgba(30, 64, 175, 0.4),
+    0 10px 20px rgba(30, 64, 175, 0.3),
+    0 5px 10px rgba(30, 64, 175, 0.2),
+    0 0 0 1px rgba(30, 64, 175, 0.1);
+  transform: translateZ(0);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.mannequin-circular:hover {
+  box-shadow: 
+    0 25px 50px rgba(30, 64, 175, 0.5),
+    0 15px 30px rgba(30, 64, 175, 0.4),
+    0 8px 15px rgba(30, 64, 175, 0.3),
+    0 0 0 2px rgba(30, 64, 175, 0.15);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .mannequin-idle-premium,
+  .mannequin-awakening,
+  .mannequin-spin {
+    animation: none;
+  }
+  
+  .mannequin-idle-premium::before {
+    animation: none;
+    opacity: 0.2;
+  }
+  
+  .zone-glow {
+    animation: none !important;
+  }
+  
+  .mannequin-container {
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .mannequin-container:hover {
+    transform: scale(1.15) !important;
+  }
+}
+
+/* Zone Glow Animation */
+.zone-glow {
+  transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+}
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Item Added Feedback */
+@keyframes itemPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes itemGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  }
+}
+
+.item-added-feedback {
+  animation: itemPop 0.3s ease-out, itemGlow 0.6s ease-out;
+}
+
+/* Item chip hover effects */
+.item-chip {
+  transition: all 0.2s ease;
+}
+
+.item-chip:hover {
+  transform: scale(1.05);
+  z-index: 10;
 }

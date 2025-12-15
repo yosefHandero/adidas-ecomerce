@@ -1,22 +1,19 @@
-# Adidas E-Commerce
+# OutfitBuilder
 
-A modern e-commerce application built with Next.js 15, TypeScript, Drizzle ORM, and PocketBase.
+A clean, one-page AI outfit recommendation experience. Describe items you own or want to style, and get personalized outfit suggestions with visual mannequin representation.
 
 ## 🚀 Features
 
-- ✅ Full authentication with PocketBase
-- ✅ Product catalog with categories and variants
-- ✅ Shopping cart with persistence
-- ✅ Checkout flow
-- ✅ Order management
-- ✅ Responsive design
-- ✅ Type-safe with TypeScript
+- **AI-Powered Outfit Generation**: Get 3 style variations (Minimal, Street, Elevated) based on your items
+- **Visual Mannequin**: Interactive unisex mannequin with animations
+- **Smart Input**: Text descriptions + optional image uploads
+- **Style Controls**: Occasion, vibe, fit, weather, and budget preferences
+- **No Auth Required**: Start styling immediately
 
 ## 📋 Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
-- PocketBase instance (local or hosted)
+- API key for AI service (OpenAI, Anthropic, etc.)
 
 ## 🛠️ Setup
 
@@ -31,34 +28,23 @@ npm install
 Create a `.env.local` file:
 
 ```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/adidas_db"
+# AI Service (choose one)
+OPENAI_API_KEY="your-openai-key"  # Default - recommended
+# OR
+ANTHROPIC_API_KEY="your-anthropic-key"
+# OR
+GROQ_API_KEY="your-groq-key"
 
-# PocketBase
-POCKETBASE_URL="http://127.0.0.1:8090"
-NEXT_PUBLIC_POCKETBASE_URL="http://127.0.0.1:8090"
+# Optional: Specify provider (defaults to openai)
+AI_PROVIDER="openai"  # Options: openai, anthropic, groq
+
+# Image Search (optional - for outfit inspiration images)
+UNSPLASH_ACCESS_KEY="your-unsplash-key"  # Get free at unsplash.com/developers
+# OR
+PEXELS_API_KEY="your-pexels-key"  # Get free at pexels.com/api
 ```
 
-### 3. Set Up PocketBase
-
-1. Download PocketBase from [pocketbase.io](https://pocketbase.io)
-2. Run PocketBase: `./pocketbase serve`
-3. Access admin UI at `http://127.0.0.1:8090/_/`
-4. Create collections:
-   - **users** (default collection)
-   - **carts** (with `user` relation field)
-
-### 4. Set Up Database
-
-```bash
-# Push schema to database
-npm run db:push
-
-# Seed sample data
-npm run seed
-```
-
-### 5. Run Development Server
+### 3. Run Development Server
 
 ```bash
 npm run dev
@@ -70,80 +56,36 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 ```
 src/
-├── app/              # Next.js app router pages and API routes
-├── components/       # React components
-├── db/              # Drizzle schema and connection
-├── lib/             # Utilities (PocketBase, auth)
-└── stores/          # Zustand state management
+├── app/
+│   ├── outfit/
+│   │   └── page.tsx        # Main outfit builder page
+│   ├── layout.tsx
+│   └── globals.css
+├── components/
+│   ├── OutfitInputPanel.tsx
+│   ├── MannequinStage.tsx
+│   ├── OutfitResults.tsx
+│   └── ItemChip.tsx
+└── lib/
+    ├── ai.ts              # AI prompt + parsing
+    └── types.ts
 ```
 
-## 🗄️ Database
+## 🎨 How It Works
 
-This project uses:
-
-- **Drizzle ORM** for type-safe database queries
-- **PostgreSQL** as the database
-- **PocketBase** for authentication and cart storage
-
-### Database Commands
-
-```bash
-npm run db:generate  # Generate migration files
-npm run db:migrate   # Run migrations
-npm run db:push      # Push schema directly
-npm run db:studio    # Open Drizzle Studio
-```
-
-## 🔐 Authentication
-
-Authentication is handled by PocketBase:
-
-- Sign up at `/auth/signup`
-- Sign in at `/auth/login`
-- User menu in header
-- Protected API routes
-
-## 🛒 Cart System
-
-- LocalStorage persistence for guests
-- PocketBase sync for authenticated users
-- Real-time cart updates
-- Quantity management
+1. **Add Items**: Describe clothing items you own or want to style (text + optional images)
+2. **Set Preferences**: Choose occasion, vibe, fit, weather, and budget
+3. **Generate**: AI creates 3 outfit variations with complete styling details
+4. **Visualize**: See items positioned on an animated mannequin
+5. **Refine**: Click items to swap or adjust
 
 ## 📚 Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
-- **Database**: PostgreSQL + Drizzle ORM
-- **Auth**: PocketBase
-- **State**: Zustand
 - **Styling**: Tailwind CSS
-
-## 📖 Documentation
-
-See [MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md) for detailed migration and architecture documentation.
-
-## 🚢 Deployment
-
-### PocketBase
-
-Deploy PocketBase to:
-
-- Render
-- Railway
-- Fly.io
-- Or self-host
-
-Update `POCKETBASE_URL` and `NEXT_PUBLIC_POCKETBASE_URL` in production.
-
-### Next.js
-
-Deploy to:
-
-- Vercel (recommended)
-- Netlify
-- Railway
-- Or any Node.js hosting
+- **State**: React Hooks
+- **AI**: OpenAI / Anthropic API
 
 ## 📝 License
 

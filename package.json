@@ -1,20 +1,15 @@
 {
-  "name": "adidas",
+  "name": "outfitbuilder",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:fix-products": "tsx ./scripts/migrate-products.ts",
-    "seed": "tsx ./scripts/seed.ts"
+    "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.1",
     "drizzle-orm": "^0.44.5",
     "next": "15.5.2",
