@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UserItem,
   OutfitPreferences,
@@ -27,6 +27,50 @@ export function OutfitInputPanel({
   onGenerate,
   isGenerating,
 }: OutfitInputPanelProps) {
+  // #region agent log
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        // Test if Tailwind utility classes are working
+        const testEl = document.createElement("div");
+        testEl.className =
+          "flex items-center bg-blue-600 text-white rounded-lg";
+        testEl.style.position = "absolute";
+        testEl.style.top = "-9999px";
+        document.body.appendChild(testEl);
+        const styles = window.getComputedStyle(testEl);
+        const result = {
+          display: styles.display,
+          backgroundColor: styles.backgroundColor,
+          color: styles.color,
+          borderRadius: styles.borderRadius,
+        };
+        document.body.removeChild(testEl);
+        fetch(
+          "http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "src/components/OutfitInputPanel.tsx:22",
+              message: "Tailwind class test",
+              data: {
+                testResult: result,
+                isTailwindWorking:
+                  result.display === "flex" &&
+                  result.backgroundColor !== "rgba(0, 0, 0, 0)",
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "H3",
+            }),
+          }
+        ).catch(() => {});
+      }, 200);
+    }
+  }, []);
+  // #endregion
   const [newItemDescription, setNewItemDescription] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 

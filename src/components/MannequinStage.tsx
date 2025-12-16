@@ -46,6 +46,11 @@ export function MannequinStage({
     x: number;
     y: number;
   } | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dragPosition, setDragPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -137,14 +142,29 @@ export function MannequinStage({
     setMousePosition({ x, y });
 
     // Determine active zone based on mouse position
-    if (y < 20) setActiveZone("head");
-    else if (y < 50) setActiveZone("torso");
-    else if (y < 80) setActiveZone("legs");
-    else setActiveZone("feet");
+    // Check for accessories zone first (right side, upper area)
+    if (x > 65 && y >= 20 && y < 40) {
+      setActiveZone("accessories");
+    } else if (y < 20) {
+      setActiveZone("head");
+    } else if (y < 50) {
+      setActiveZone("torso");
+    } else if (y < 80) {
+      setActiveZone("legs");
+    } else {
+      setActiveZone("feet");
+    }
   };
 
   // Determine zone from position
-  const getZoneFromPosition = (y: number): OutfitItem["body_zone"] => {
+  const getZoneFromPosition = (
+    x: number,
+    y: number
+  ): OutfitItem["body_zone"] => {
+    // Check for accessories zone first (right side, upper area)
+    if (x > 65 && y >= 20 && y < 40) return "accessories";
+
+    // Then check vertical zones
     if (y < 20) return "head";
     if (y < 50) return "torso";
     if (y < 80) return "legs";
@@ -171,7 +191,7 @@ export function MannequinStage({
 
           // Determine zone from current mouse position or paste position
           const zone = pastePosition
-            ? getZoneFromPosition(pastePosition.y)
+            ? getZoneFromPosition(pastePosition.x, pastePosition.y)
             : activeZone || "torso";
 
           onImagePaste(imageUrl, zone);
@@ -196,6 +216,76 @@ export function MannequinStage({
 
     // Clear after a short delay
     setTimeout(() => setPastePosition(null), 2000);
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setDragPosition({ x, y });
+
+    // Set drag effect
+    if (e.dataTransfer.types.includes("Files")) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the stage itself, not a child element
+    if (!stageRef.current?.contains(e.relatedTarget as Node)) {
+      setIsDraggingOver(false);
+      setDragPosition(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    if (!onImagePaste) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFile = files.find((file) => file.type.startsWith("image/"));
+
+    if (!imageFile) return;
+
+    // Determine zone from drop position
+    let zone: OutfitItem["body_zone"] = "torso";
+    if (dragPosition) {
+      zone = getZoneFromPosition(dragPosition.x, dragPosition.y);
+    } else if (activeZone) {
+      zone = activeZone;
+    }
+
+    // Convert to data URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageUrl = reader.result as string;
+      onImagePaste(imageUrl, zone);
+
+      // Visual feedback
+      setItemAddedZone(zone);
+      setTimeout(() => setItemAddedZone(null), 600);
+    };
+    reader.readAsDataURL(imageFile);
+
+    setDragPosition(null);
   };
 
   const handleInteraction = () => {
@@ -237,7 +327,9 @@ export function MannequinStage({
   return (
     <div
       ref={stageRef}
-      className="relative h-full min-h-[600px] flex items-center justify-center rounded-2xl shadow-lg overflow-hidden mannequin-canvas"
+      className={`relative h-full min-h-[600px] flex items-center justify-center rounded-2xl shadow-lg overflow-hidden mannequin-canvas ${
+        isDraggingOver ? "ring-4 ring-blue-400 ring-opacity-50" : ""
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
@@ -246,6 +338,10 @@ export function MannequinStage({
       onMouseMove={handleMouseMove}
       onClick={handleClick}
       onPaste={handlePaste}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onTouchStart={() => setIsHovered(true)}
       onTouchEnd={() => {
         setTimeout(() => setIsHovered(false), 2000);
@@ -254,7 +350,7 @@ export function MannequinStage({
       onBlur={() => setIsHovered(false)}
       tabIndex={0}
       role="img"
-      aria-label="Mannequin for outfit visualization. Click to set paste location, then paste an image with Ctrl+V or Cmd+V"
+      aria-label="Mannequin for outfit visualization. Drag and drop images or paste with Ctrl+V or Cmd+V"
     >
       {/* Premium Background */}
       <div className="absolute inset-0 mannequin-background" />
@@ -314,12 +410,28 @@ export function MannequinStage({
         />
       </div>
 
-      {/* Paste Hint */}
+      {/* Paste/Drag Hint */}
       {onImagePaste && isEmpty && (
         <div className="absolute top-4 right-4 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 opacity-70 hover:opacity-100 transition-opacity pointer-events-none z-20 backdrop-blur-sm">
           <p className="font-medium">
-            💡 Click mannequin, then paste (Ctrl+V / Cmd+V)
+            💡 Drag & drop images or paste (Ctrl+V / Cmd+V)
           </p>
+        </div>
+      )}
+
+      {/* Drag Over Indicator */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 bg-blue-100 bg-opacity-20 border-4 border-dashed border-blue-400 rounded-2xl pointer-events-none z-10 flex items-center justify-center">
+          <div className="bg-white rounded-lg px-6 py-4 shadow-lg border-2 border-blue-400">
+            <p className="text-lg font-semibold text-blue-700 text-center">
+              Drop image here
+            </p>
+            <p className="text-sm text-blue-600 text-center mt-1">
+              {dragPosition
+                ? `Zone: ${getZoneFromPosition(dragPosition.x, dragPosition.y)}`
+                : "Release to add"}
+            </p>
+          </div>
         </div>
       )}
 

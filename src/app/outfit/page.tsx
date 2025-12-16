@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { OutfitInputPanel } from "@/components/OutfitInputPanel";
 import { MannequinStage } from "@/components/MannequinStage";
 import { OutfitResults } from "@/components/OutfitResults";
@@ -14,6 +14,72 @@ import {
 } from "@/lib/types";
 
 export default function OutfitPage() {
+  // #region agent log
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      fetch(
+        "http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "src/app/outfit/page.tsx:16",
+            message: "OutfitPage mounted",
+            data: { hasWindow: true },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "H1",
+          }),
+        }
+      ).catch(() => {});
+      // Check if CSS is loaded after mount
+      setTimeout(() => {
+        const stylesheets = Array.from(document.styleSheets);
+        const hasLayoutCSS = stylesheets.some((sheet) => {
+          try {
+            return sheet.href && sheet.href.includes("layout.css");
+          } catch {
+            return false;
+          }
+        });
+        const linkTags = Array.from(
+          document.querySelectorAll('link[rel="stylesheet"]')
+        );
+        fetch(
+          "http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "src/app/outfit/page.tsx:16",
+              message: "CSS check",
+              data: {
+                stylesheetCount: stylesheets.length,
+                linkTagCount: linkTags.length,
+                hasLayoutCSS,
+                linkHrefs: linkTags.map(
+                  (l) => l.getAttribute("href") || "no-href"
+                ),
+                stylesheetHrefs: stylesheets.map((s) => {
+                  try {
+                    return s.href || "inline";
+                  } catch {
+                    return "error";
+                  }
+                }),
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "H1",
+            }),
+          }
+        ).catch(() => {});
+      }, 100);
+    }
+  }, []);
+  // #endregion
   const [userItems, setUserItems] = useState<UserItem[]>([]);
   const [preferences, setPreferences] = useState<OutfitPreferences>({
     occasion: "Street",
