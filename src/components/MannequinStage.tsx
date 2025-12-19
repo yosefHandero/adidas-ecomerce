@@ -12,6 +12,7 @@ interface MannequinStageProps {
   userItems: UserItem[];
   onItemClick: (item: OutfitItem) => void;
   onImagePaste?: (imageUrl: string, zone: OutfitItem["body_zone"]) => void;
+  isGenerating?: boolean;
 }
 
 // Zone positions on mannequin (percentage-based)
@@ -31,9 +32,9 @@ export function MannequinStage({
   userItems,
   onItemClick,
   onImagePaste,
+  isGenerating,
 }: MannequinStageProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [reducedMotion, setReducedMotion] = useState(false);
   const [showInactivityHint, setShowInactivityHint] = useState(false);
   const [activeZone, setActiveZone] = useState<OutfitItem["body_zone"] | null>(
@@ -138,8 +139,6 @@ export function MannequinStage({
     const rect = stageRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-    setMousePosition({ x, y });
 
     // Determine active zone based on mouse position
     // Check for accessories zone first (right side, upper area)
@@ -384,10 +383,12 @@ export function MannequinStage({
       {/* Simple Mannequin Image */}
       <div
         className={`relative mannequin-container ${
-          isEmpty
-            ? isHovered && !reducedMotion
-              ? "mannequin-awakening"
-              : "mannequin-idle-premium"
+          isGenerating
+            ? "mannequin-generating"
+            : isEmpty && isHovered && !reducedMotion
+            ? "mannequin-awakening"
+            : isEmpty
+            ? "mannequin-idle-premium"
             : ""
         }`}
         style={{
@@ -501,7 +502,6 @@ export function MannequinStage({
       {/* Empty State Overlay */}
       {isEmpty && (
         <EmptyStateOverlay
-          isHovered={isHovered}
           showInactivityHint={showInactivityHint}
           onInteraction={handleInteraction}
         />

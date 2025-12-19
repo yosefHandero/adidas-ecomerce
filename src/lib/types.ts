@@ -19,18 +19,15 @@ export interface OutfitItem {
   material?: string;
   style_tags: string[];
   why_it_matches: string;
-  shopping_search_terms: string;
   body_zone: 'head' | 'torso' | 'legs' | 'feet' | 'accessories';
 }
 
 export interface OutfitVariation {
   name: 'Minimal' | 'Street' | 'Elevated';
+  suggestion: string;
   items: OutfitItem[];
   color_palette: string[];
-  styling_notes: {
-    do: string[];
-    dont: string[];
-  };
+  styling_tips: string[];
 }
 
 export interface OutfitResponse {

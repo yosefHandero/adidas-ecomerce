@@ -1,7 +1,6 @@
 "use client";
 
 interface EmptyStateOverlayProps {
-  isHovered: boolean;
   showInactivityHint: boolean;
   onInteraction: () => void;
 }
@@ -38,7 +37,7 @@ export function EmptyStateOverlay({
           className="text-sm text-gray-600 text-center px-4 absolute left-1/2 transform -translate-x-1/2"
           style={{ top: "calc(50% + 200px)" }}
         >
-          Tip: Upload a photo for best results
+          Tip: Drag & drop or paste an image for best results
         </p>
       )}
     </div>

@@ -1,24 +1,52 @@
 "use client";
 
-import { OutfitVariation } from "@/lib/types";
-import { useState, useRef } from "react";
+import { OutfitVariation, OutfitItem } from "@/lib/types";
+import { useState, useRef, useEffect } from "react";
+import { ImageSelectionModal } from "./ImageSelectionModal";
 
 interface OutfitResultsProps {
   variations: OutfitVariation[];
+  selectedVariation?: number;
   onItemSwap?: (variationIndex: number, itemIndex: number) => void;
   onVariationChange?: (variation: OutfitVariation) => void;
+  onImageAdd?: (imageUrl: string, item: OutfitItem) => void;
 }
 
 export function OutfitResults({
   variations,
+  selectedVariation: controlledSelectedVariation,
   onItemSwap,
   onVariationChange,
+  onImageAdd,
 }: OutfitResultsProps) {
-  const [selectedVariation, setSelectedVariation] = useState(0);
+  const [internalSelectedVariation, setInternalSelectedVariation] = useState(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{
+    item: OutfitItem;
+    variationIndex: number;
+    itemIndex: number;
+  } | null>(null);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Use controlled prop if provided, otherwise use internal state
+  const selectedVariation =
+    controlledSelectedVariation !== undefined
+      ? controlledSelectedVariation
+      : internalSelectedVariation;
 
   const handleVariationChange = (index: number) => {
-    setSelectedVariation(index);
+    // Update internal state if not controlled
+    if (controlledSelectedVariation === undefined) {
+      setInternalSelectedVariation(index);
+    }
 
     // Clear existing timer to debounce rapid clicks
     if (debounceTimerRef.current) {
@@ -35,7 +63,14 @@ export function OutfitResults({
 
   if (variations.length === 0) return null;
 
-  const variation = variations[selectedVariation];
+  // Ensure selectedVariation is within bounds
+  const safeSelectedVariation = Math.max(
+    0,
+    Math.min(selectedVariation, variations.length - 1)
+  );
+  const variation = variations[safeSelectedVariation];
+
+  if (!variation) return null;
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6">
@@ -50,7 +85,7 @@ export function OutfitResults({
             key={v.name}
             onClick={() => handleVariationChange(index)}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              selectedVariation === index
+              safeSelectedVariation === index
                 ? "bg-blue-600 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
@@ -116,9 +151,23 @@ export function OutfitResults({
                       </div>
                     )}
                   </div>
-                  {onItemSwap && (
+                  {onImageAdd && (
                     <button
-                      onClick={() => onItemSwap(selectedVariation, index)}
+                      onClick={() => {
+                        setSelectedItem({
+                          item,
+                          variationIndex: safeSelectedVariation,
+                          itemIndex: index,
+                        });
+                      }}
+                      className="ml-3 px-3 py-1 text-xs bg-blue-600 text-white border border-blue-600 rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Add Image
+                    </button>
+                  )}
+                  {onItemSwap && !onImageAdd && (
+                    <button
+                      onClick={() => onItemSwap(safeSelectedVariation, index)}
                       className="ml-3 px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
                     >
                       Swap
@@ -130,34 +179,48 @@ export function OutfitResults({
           </div>
         </div>
 
-        {/* Styling Notes */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Brief Suggestion */}
+        {variation.suggestion && (
           <div>
-            <h4 className="text-sm font-semibold text-green-700 mb-2">✓ Do</h4>
-            <ul className="space-y-1">
-              {variation.styling_notes.do.map((note, i) => (
-                <li key={i} className="text-sm text-gray-600 flex items-start">
-                  <span className="text-green-600 mr-2">•</span>
-                  {note}
-                </li>
-              ))}
-            </ul>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+              Outfit Suggestion
+            </h4>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              {variation.suggestion}
+            </p>
           </div>
+        )}
+
+        {/* Styling Tips */}
+        {variation.styling_tips && variation.styling_tips.length > 0 && (
           <div>
-            <h4 className="text-sm font-semibold text-red-700 mb-2">
-              ✗ Don&apos;t
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+              Styling Tips
             </h4>
             <ul className="space-y-1">
-              {variation.styling_notes.dont.map((note, i) => (
+              {variation.styling_tips.map((tip, i) => (
                 <li key={i} className="text-sm text-gray-600 flex items-start">
-                  <span className="text-red-600 mr-2">•</span>
-                  {note}
+                  <span className="text-blue-600 mr-2">•</span>
+                  {tip}
                 </li>
               ))}
             </ul>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Image Selection Modal */}
+      {selectedItem && onImageAdd && (
+        <ImageSelectionModal
+          isOpen={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onSelect={(imageUrl) => {
+            onImageAdd(imageUrl, selectedItem.item);
+            setSelectedItem(null);
+          }}
+          item={selectedItem.item}
+        />
+      )}
     </div>
   );
 }

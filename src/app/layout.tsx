@@ -22,27 +22,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // #region agent log
-  if (typeof window !== "undefined") {
-    fetch("http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "src/app/layout.tsx:20",
-        message: "RootLayout rendering",
-        data: {
-          hasWindow: true,
-          userAgent:
-            typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "H1",
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body

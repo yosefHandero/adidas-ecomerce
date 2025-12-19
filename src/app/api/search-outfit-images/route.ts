@@ -1,42 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchOutfitImages, searchPexelsImages, type OutfitImage } from '@/lib/imageSearch';
 import { SearchOutfitImagesRequestSchema, type ApiErrorResponse, type SearchOutfitImagesResponse } from '@/lib/validation';
-
-// Rate limiting: simple in-memory store (for production, use Redis or similar)
-const requestCounts = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 20;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = requestCounts.get(ip);
-
-  if (!record || now > record.resetAt) {
-    requestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-
-  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
+import { rateLimit, getClientIP } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
   try {
-    // Basic rate limiting
-    const ip = request.headers.get('x-forwarded-for') || 
-               request.headers.get('x-real-ip') || 
-               'unknown';
-    
-    if (!checkRateLimit(ip)) {
+    // Rate limiting: 20 requests per minute per IP
+    const clientIP = getClientIP(request);
+    const rateLimitResult = rateLimit(clientIP, 20, 60 * 1000);
+    if (!rateLimitResult.allowed) {
       const errorResponse: ApiErrorResponse = {
-        error: 'Too many requests. Please try again later.',
-        code: 'RATE_LIMIT_EXCEEDED',
+        error: `Too many requests. Please try again in ${rateLimitResult.retryAfter} second${rateLimitResult.retryAfter !== 1 ? 's' : ''}.`,
+        code: 'RATE_LIMITED',
       };
-      return NextResponse.json(errorResponse, { status: 429 });
+      return NextResponse.json(errorResponse, { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': '20',
+          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          'X-RateLimit-Reset': new Date(rateLimitResult.resetAt).toISOString(),
+          'Retry-After': String(rateLimitResult.retryAfter || 60),
+        },
+      });
     }
 
     // Parse and validate request body
@@ -66,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Validate query length to prevent abuse
     const searchQuery = variation.items
-      .map(item => item.shopping_search_terms || item.description)
+      .map(item => item.description)
       .join(' ');
     
     if (searchQuery.length > 500) {

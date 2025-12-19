@@ -16,9 +16,9 @@ export interface OutfitImage {
  * Build search query from outfit variation
  */
 function buildSearchQuery(variation: OutfitVariation): string {
-  // Combine item descriptions and search terms
+  // Combine item descriptions
   const searchTerms = variation.items
-    .map(item => item.shopping_search_terms || item.description)
+    .map(item => item.description)
     .join(' ');
   
   // Add occasion and style context
@@ -102,7 +102,8 @@ export async function searchOutfitImages(
 
 /**
  * Fallback: Use Unsplash Source API (no authentication required)
- * Note: This is a basic fallback. For production, use proper API keys.
+ * ⚠️ WARNING: Unsplash Source API is deprecated and may not work reliably.
+ * For production, use proper API keys with the Unsplash API.
  */
 async function searchUnsplashSource(query: string, count: number): Promise<OutfitImage[]> {
   const images: OutfitImage[] = [];

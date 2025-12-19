@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { OutfitInputPanel } from "@/components/OutfitInputPanel";
 import { MannequinStage } from "@/components/MannequinStage";
 import { OutfitResults } from "@/components/OutfitResults";
-import { OutfitImageGrid } from "@/components/OutfitImageGrid";
-import type { OutfitImage } from "@/lib/imageSearch";
 import {
   UserItem,
   OutfitPreferences,
@@ -14,72 +12,6 @@ import {
 } from "@/lib/types";
 
 export default function OutfitPage() {
-  // #region agent log
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      fetch(
-        "http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "src/app/outfit/page.tsx:16",
-            message: "OutfitPage mounted",
-            data: { hasWindow: true },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "H1",
-          }),
-        }
-      ).catch(() => {});
-      // Check if CSS is loaded after mount
-      setTimeout(() => {
-        const stylesheets = Array.from(document.styleSheets);
-        const hasLayoutCSS = stylesheets.some((sheet) => {
-          try {
-            return sheet.href && sheet.href.includes("layout.css");
-          } catch {
-            return false;
-          }
-        });
-        const linkTags = Array.from(
-          document.querySelectorAll('link[rel="stylesheet"]')
-        );
-        fetch(
-          "http://127.0.0.1:7242/ingest/127737af-b2fa-4ac9-ba95-eecc060c2b51",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              location: "src/app/outfit/page.tsx:16",
-              message: "CSS check",
-              data: {
-                stylesheetCount: stylesheets.length,
-                linkTagCount: linkTags.length,
-                hasLayoutCSS,
-                linkHrefs: linkTags.map(
-                  (l) => l.getAttribute("href") || "no-href"
-                ),
-                stylesheetHrefs: stylesheets.map((s) => {
-                  try {
-                    return s.href || "inline";
-                  } catch {
-                    return "error";
-                  }
-                }),
-              },
-              timestamp: Date.now(),
-              sessionId: "debug-session",
-              runId: "run1",
-              hypothesisId: "H1",
-            }),
-          }
-        ).catch(() => {});
-      }, 100);
-    }
-  }, []);
-  // #endregion
   const [userItems, setUserItems] = useState<UserItem[]>([]);
   const [preferences, setPreferences] = useState<OutfitPreferences>({
     occasion: "Street",
@@ -93,16 +25,11 @@ export default function OutfitPage() {
     null
   );
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isLoadingImages, setIsLoadingImages] = useState(false);
-  const [outfitImages, setOutfitImages] = useState<OutfitImage[]>([]);
-  const [imageCache, setImageCache] = useState<Map<string, OutfitImage[]>>(
-    new Map()
-  );
-  const [currentVariationKey, setCurrentVariationKey] = useState<string | null>(
-    null
-  );
-  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastGenerateTime, setLastGenerateTime] = useState<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const inFlightRequestRef = useRef<Promise<void> | null>(null);
+  const DEBOUNCE_MS = 3000; // 3 seconds cooldown
 
   const handleGenerate = async () => {
     if (userItems.length === 0) {
@@ -110,141 +37,252 @@ export default function OutfitPage() {
       return;
     }
 
+    // Debounce: prevent rapid clicks
+    const now = Date.now();
+    const timeSinceLastGenerate = now - lastGenerateTime;
+    if (timeSinceLastGenerate < DEBOUNCE_MS) {
+      const remainingSeconds = Math.ceil(
+        (DEBOUNCE_MS - timeSinceLastGenerate) / 1000
+      );
+      setError(
+        `Please wait ${remainingSeconds} second${
+          remainingSeconds !== 1 ? "s" : ""
+        } before generating again`
+      );
+      return;
+    }
+
+    // Atomic check: prevent duplicate requests
+    // Set ref FIRST to create atomic operation, then check
+    if (inFlightRequestRef.current) {
+      return; // Already have a request in flight
+    }
+
+    // Cancel any in-flight request (shouldn't happen due to check above, but safety)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    setLastGenerateTime(now);
     setIsGenerating(true);
     setError(null);
 
-    try {
-      // Call API route that uses the AI service
-      const response = await fetch("/api/generate-outfit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userItems,
-          preferences,
-        }),
-      });
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
-      if (!response.ok) {
-        let errorMessage = "Failed to generate outfit";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
+    // Create in-flight promise to prevent duplicate requests
+    const requestPromise = (async () => {
+      try {
+        // Call API route that uses the AI service
+        const response = await fetch("/api/generate-outfit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userItems,
+            preferences,
+          }),
+          signal: abortController.signal,
+        });
 
-          // User-friendly error messages
-          if (errorData.code === "VALIDATION_ERROR") {
-            errorMessage = `Invalid input: ${errorData.error}`;
-          } else if (errorData.code === "CONFIG_ERROR") {
-            errorMessage =
-              "AI service is not properly configured. Please contact support.";
-          } else if (errorData.code === "QUOTA_EXCEEDED") {
-            errorMessage = "AI service quota exceeded. Please try again later.";
+        if (!response.ok) {
+          let errorMessage = "Failed to generate outfit";
+          // Check Retry-After header first (available even if JSON parsing fails)
+          const retryAfter = response.headers.get("Retry-After");
+
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+
+            // User-friendly error messages
+            if (errorData.code === "VALIDATION_ERROR") {
+              errorMessage = `Invalid input: ${errorData.error}`;
+            } else if (errorData.code === "CONFIG_ERROR") {
+              errorMessage =
+                errorData.error ||
+                "AI service is not properly configured. Please check your API keys.";
+            } else if (errorData.code === "QUOTA_EXCEEDED") {
+              // Use Retry-After header if available, otherwise use error message from API
+              if (retryAfter) {
+                errorMessage = `AI service quota exceeded. Please try again in ${retryAfter} second${
+                  retryAfter !== "1" ? "s" : ""
+                }.`;
+              } else {
+                errorMessage =
+                  errorData.error ||
+                  "AI service quota exceeded. Please try again later.";
+              }
+            } else if (
+              errorData.code === "RATE_LIMITED" ||
+              errorData.code === "RATE_LIMIT_EXCEEDED"
+            ) {
+              // Use Retry-After header if available, otherwise use error message from API
+              if (retryAfter) {
+                errorMessage = `Too many requests. Please wait ${retryAfter} second${
+                  retryAfter !== "1" ? "s" : ""
+                } before trying again.`;
+              } else {
+                errorMessage =
+                  errorData.error ||
+                  "Too many requests. Please wait before trying again.";
+              }
+            } else if (errorData.code === "UPSTREAM_UNAVAILABLE") {
+              // Use Retry-After header if available, otherwise use error message from API
+              if (retryAfter) {
+                errorMessage = `Service temporarily unavailable. Please try again in ${retryAfter} second${
+                  retryAfter !== "1" ? "s" : ""
+                }.`;
+              } else {
+                errorMessage =
+                  errorData.error ||
+                  "Service temporarily unavailable. Please try again later.";
+              }
+            } else if (errorData.code === "INVALID_RESPONSE") {
+              errorMessage =
+                errorData.error ||
+                "AI service returned an invalid response. Please try again.";
+            } else if (errorData.code === "NETWORK_ERROR") {
+              errorMessage =
+                errorData.error ||
+                "Network error. Please check your connection and try again.";
+            } else if (errorData.code === "NO_PROVIDERS") {
+              errorMessage =
+                errorData.error ||
+                "No AI providers are available. Please check your API key configuration.";
+            } else if (errorData.error) {
+              // Use the error message from the API if available
+              errorMessage = errorData.error;
+            }
+          } catch {
+            // If JSON parsing fails, use status-based message
+            if (response.status === 400) {
+              errorMessage = "Invalid request. Please check your input.";
+            } else if (response.status === 429 || response.status === 503) {
+              // Check Retry-After header for both rate limit (429) and quota (503) errors
+              if (retryAfter) {
+                errorMessage = `Please wait ${retryAfter} second${
+                  retryAfter !== "1" ? "s" : ""
+                } before trying again.`;
+              } else if (response.status === 429) {
+                errorMessage =
+                  "Too many requests. Please wait before trying again.";
+              } else {
+                errorMessage =
+                  "Service temporarily unavailable. Please try again later.";
+              }
+            } else if (response.status >= 500) {
+              errorMessage = "Server error. Please try again later.";
+            } else if (response.status === 401) {
+              errorMessage =
+                "Authentication failed. Please check your API keys.";
+            } else if (response.status === 403) {
+              errorMessage = "Access forbidden. Please check your permissions.";
+            } else if (response.status === 404) {
+              errorMessage = "Service not found. Please try again later.";
+            }
           }
-        } catch {
-          // If JSON parsing fails, use status-based message
-          if (response.status === 400) {
-            errorMessage = "Invalid request. Please check your input.";
-          } else if (response.status >= 500) {
-            errorMessage = "Server error. Please try again later.";
-          }
+
+          // Set error state and return early instead of throwing
+          // This prevents React from logging the error as unhandled
+          setError(errorMessage);
+          return;
         }
-        throw new Error(errorMessage);
+
+        const data = await response.json();
+
+        // Update state atomically
+        setVariations(data.variations);
+        setSelectedVariation(0);
+      } catch (err) {
+        // Don't show error if request was aborted, but still let finally block execute
+        if (err instanceof Error && err.name === "AbortError") {
+          // Don't set error message for aborted requests
+          // The finally block will still execute to clean up refs
+          return;
+        }
+        // Handle network errors and other unexpected errors
+        const errorMessage =
+          err instanceof Error ? err.message : "An error occurred";
+        setError(errorMessage);
+        // Only log unexpected errors, not API errors (which are handled above)
+        if (
+          !(
+            err instanceof Error &&
+            err.message.includes("Failed to generate outfit")
+          )
+        ) {
+          console.error("Generation error:", err);
+        }
+      } finally {
+        // Always execute cleanup, even if request was aborted
+        setIsGenerating(false);
+
+        // Clear refs only if this is still the current request
+        // Check by comparing abortController instead of promise (more reliable)
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+          inFlightRequestRef.current = null;
+        }
       }
+    })();
 
-      const data = await response.json();
-      setVariations(data.variations);
-      setSelectedVariation(0);
+    // Store the in-flight promise IMMEDIATELY to prevent race conditions
+    // This must happen synchronously before any await
+    inFlightRequestRef.current = requestPromise;
 
-      // Fetch images for the first variation
-      if (data.variations && data.variations.length > 0) {
-        await fetchOutfitImages(data.variations[0]);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Generation error:", err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Generate cache key from variation
-  const getVariationKey = (variation: OutfitVariation): string => {
-    return `${variation.name}-${variation.items
-      .map((i) => i.item_type)
-      .join("-")}`;
-  };
-
-  const fetchOutfitImages = async (variation: OutfitVariation) => {
-    // Prevent multiple simultaneous requests
-    if (isFetching) {
-      console.log("Image fetch already in progress, skipping...");
-      return;
-    }
-
-    const variationKey = getVariationKey(variation);
-
-    // Check cache first
-    if (imageCache.has(variationKey)) {
-      console.log("Using cached images for variation:", variationKey);
-      setOutfitImages(imageCache.get(variationKey)!);
-      setCurrentVariationKey(variationKey);
-      return;
-    }
-
-    // If we're already showing images for this variation, don't fetch again
-    if (currentVariationKey === variationKey && outfitImages.length > 0) {
-      console.log("Images already loaded for this variation");
-      return;
-    }
-
-    setIsFetching(true);
-    setIsLoadingImages(true);
-    setOutfitImages([]);
-
+    // Wait for the request to complete
     try {
-      // Add small delay to prevent rapid successive requests
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const response = await fetch("/api/search-outfit-images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          variation,
-          count: 3, // Reduced from 6 to 3
-        }),
-      });
-
-      if (!response.ok) {
-        // Don't throw error, just log and use empty array
-        console.warn("Image fetch failed, using empty array");
-        setOutfitImages([]);
-        return;
-      }
-
-      const data = await response.json();
-      const images = data.images || [];
-
-      // Cache the results
-      setImageCache((prev) => new Map(prev).set(variationKey, images));
-      setOutfitImages(images);
-      setCurrentVariationKey(variationKey);
-    } catch (err) {
-      console.error("Image search error:", err);
-      // Don't show error to user, just use empty array
-      setOutfitImages([]);
-    } finally {
-      setIsLoadingImages(false);
-      setIsFetching(false);
+      await requestPromise;
+    } catch {
+      // Error already handled in requestPromise catch block
+      // This catch prevents unhandled promise rejection
     }
   };
 
-  const handleItemClick = (item: OutfitItem) => {
+  // Cleanup on unmount: cancel any in-flight requests
+  useEffect(() => {
+    return () => {
+      // Cancel outfit generation request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const handleItemClick = () => {
     // TODO: Open swap modal or show alternatives
-    console.log("Item clicked:", item);
+    // Placeholder for future implementation
   };
 
-  const handleItemSwap = (variationIndex: number, itemIndex: number) => {
+  const handleItemSwap = () => {
     // TODO: Implement item swapping logic
-    console.log("Swap item:", variationIndex, itemIndex);
+    // Placeholder for future implementation
+  };
+
+  const handleImageAdd = (imageUrl: string, item: OutfitItem) => {
+    // Create a new user item from the selected image
+    const zoneNames: Record<OutfitItem["body_zone"], string> = {
+      head: "Hat or headwear",
+      torso: "Top or shirt",
+      legs: "Pants or bottoms",
+      feet: "Shoes or footwear",
+      accessories: "Accessory",
+    };
+
+    const newItem: UserItem = {
+      id: Date.now().toString(),
+      description:
+        item.description || `${zoneNames[item.body_zone]} - ${item.item_type}`,
+      imageUrl: imageUrl,
+    };
+
+    setUserItems([...userItems, newItem]);
+
+    // Trigger item added feedback
+    setTimeout(() => {
+      const event = new CustomEvent("itemAdded", { detail: { item: newItem } });
+      window.dispatchEvent(event);
+    }, 100);
   };
 
   const handleImagePaste = (
@@ -312,23 +350,84 @@ export default function OutfitPage() {
             />
           </div>
 
-          {/* Right Panel - Mannequin or Images (65-70%) */}
+          {/* Right Panel - Mannequin or Suggestions (65-70%) */}
           <div className="lg:col-span-2">
             {variations.length > 0 &&
-            (outfitImages.length > 0 || isLoadingImages) ? (
-              <OutfitImageGrid
-                images={outfitImages}
-                isLoading={isLoadingImages}
-                onImageClick={(image) => {
-                  window.open(image.url, "_blank", "noopener,noreferrer");
-                }}
-              />
+            selectedVariation !== null &&
+            selectedVariation >= 0 &&
+            selectedVariation < variations.length ? (
+              // Show brief suggestion when variations exist
+              (() => {
+                const currentVariation = variations[selectedVariation];
+                if (!currentVariation) return null;
+
+                return (
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 h-full min-h-[600px] flex flex-col">
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900">
+                      {currentVariation.name} Style
+                    </h2>
+
+                    {/* Brief Suggestion */}
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                        Outfit Suggestion
+                      </h3>
+                      <p className="text-gray-700 leading-relaxed text-base">
+                        {currentVariation.suggestion}
+                      </p>
+                    </div>
+
+                    {/* Styling Tips */}
+                    {currentVariation.styling_tips &&
+                      currentVariation.styling_tips.length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                            Styling Tips
+                          </h3>
+                          <ul className="space-y-2">
+                            {currentVariation.styling_tips.map((tip, index) => (
+                              <li
+                                key={index}
+                                className="flex items-start text-gray-700"
+                              >
+                                <span className="text-blue-600 mr-2">•</span>
+                                <span>{tip}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {/* Color Palette */}
+                    {currentVariation.color_palette &&
+                      currentVariation.color_palette.length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                            Color Palette
+                          </h3>
+                          <div className="flex gap-3 flex-wrap">
+                            {currentVariation.color_palette.map((color, i) => (
+                              <div
+                                key={i}
+                                className="w-16 h-16 rounded-lg border-2 border-gray-300 shadow-sm"
+                                style={{ backgroundColor: color }}
+                                title={color}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                );
+              })()
             ) : (
+              // Show mannequin only when no variations exist
               <MannequinStage
                 items={currentItems}
                 userItems={userItems}
                 onItemClick={handleItemClick}
                 onImagePaste={handleImagePaste}
+                isGenerating={isGenerating}
               />
             )}
           </div>
@@ -339,8 +438,18 @@ export default function OutfitPage() {
           <div className="mt-6">
             <OutfitResults
               variations={variations}
+              selectedVariation={selectedVariation ?? 0}
               onItemSwap={handleItemSwap}
-              onVariationChange={fetchOutfitImages}
+              onImageAdd={handleImageAdd}
+              onVariationChange={(variation) => {
+                // Update selected variation when user switches tabs
+                const index = variations.findIndex(
+                  (v) => v.name === variation.name
+                );
+                if (index !== -1) {
+                  setSelectedVariation(index);
+                }
+              }}
             />
           </div>
         )}

@@ -217,13 +217,18 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .mannequin-idle-premium,
   .mannequin-awakening,
-  .mannequin-spin {
+  .mannequin-spin,
+  .mannequin-generating {
     animation: none;
   }
   
   .mannequin-idle-premium::before {
     animation: none;
     opacity: 0.2;
+  }
+  
+  .mannequin-generating .mannequin-circular {
+    animation: none;
   }
   
   .zone-glow {
@@ -294,4 +299,41 @@ body {
 .item-chip:hover {
   transform: scale(1.05);
   z-index: 10;
+}
+
+/* Pulsing animation for generating state */
+@keyframes generatingPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+@keyframes generatingGlow {
+  0%, 100% {
+    box-shadow: 
+      0 20px 40px rgba(59, 130, 246, 0.4),
+      0 10px 20px rgba(59, 130, 246, 0.3),
+      0 5px 10px rgba(59, 130, 246, 0.2),
+      0 0 0 1px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 30px 60px rgba(59, 130, 246, 0.6),
+      0 15px 30px rgba(59, 130, 246, 0.5),
+      0 8px 15px rgba(59, 130, 246, 0.4),
+      0 0 0 3px rgba(59, 130, 246, 0.3);
+  }
+}
+
+.mannequin-generating {
+  animation: generatingPulse 1.5s ease-in-out infinite;
+}
+
+.mannequin-generating .mannequin-circular {
+  animation: generatingGlow 1.5s ease-in-out infinite;
 }
