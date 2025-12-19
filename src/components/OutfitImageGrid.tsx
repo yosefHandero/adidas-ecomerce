@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { OutfitImage } from "@/lib/imageSearch";
 
 interface OutfitImageGridProps {
@@ -65,15 +66,19 @@ export function OutfitImageGrid({
               {/* Image */}
               <div className="relative w-full h-full min-h-[200px] bg-gray-200">
                 {!hasError && (
-                  <img
-                    src={image.url}
-                    alt={image.description || `Outfit inspiration ${index + 1}`}
-                    className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
-                      isLoaded ? "opacity-100" : "opacity-0"
-                    }`}
-                    onLoad={() => handleImageLoad(image.id)}
-                    onError={() => handleImageError(image.id)}
-                  />
+                  <div className={`relative w-full h-full transition-transform duration-300 group-hover:scale-105 ${
+                    isLoaded ? "opacity-100" : "opacity-0"
+                  }`}>
+                    <Image
+                      src={image.url}
+                      alt={image.description || `Outfit inspiration ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      onLoad={() => handleImageLoad(image.id)}
+                      onError={() => handleImageError(image.id)}
+                    />
+                  </div>
                 )}
 
                 {/* Loading skeleton */}

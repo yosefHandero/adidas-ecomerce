@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { OutfitImage } from "@/lib/imageSearch";
 
 import { OutfitItem } from "@/lib/types";
@@ -123,11 +124,15 @@ export function ImageSelectionModal({
                     onClose();
                   }}
                 >
-                  <img
-                    src={image.thumbnail || image.url}
-                    alt={image.description || item.description}
-                    className="w-full h-48 object-cover"
-                  />
+                  <div className="relative w-full h-48 overflow-hidden">
+                    <Image
+                      src={image.thumbnail || image.url}
+                      alt={image.description || item.description}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  </div>
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
                     <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">
                       Select

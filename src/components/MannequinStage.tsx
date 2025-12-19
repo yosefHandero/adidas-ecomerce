@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { OutfitItem, UserItem } from "@/lib/types";
 import { ItemChip } from "./ItemChip";
 import { EmptyStateOverlay } from "./EmptyStateOverlay";
@@ -183,9 +184,21 @@ export function MannequinStage({
         const file = item.getAsFile();
         if (!file) return;
 
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          console.error('Pasted image too large. Please use an image smaller than 5MB.');
+          return;
+        }
+
         // Convert to data URL
         const reader = new FileReader();
         reader.onloadend = () => {
+          if (!reader.result) {
+            console.error('Failed to read pasted image');
+            return;
+          }
+          
           const imageUrl = reader.result as string;
 
           // Determine zone from current mouse position or paste position
@@ -198,6 +211,9 @@ export function MannequinStage({
           // Visual feedback
           setItemAddedZone(zone);
           setTimeout(() => setItemAddedZone(null), 600);
+        };
+        reader.onerror = () => {
+          console.error('Error reading pasted image');
         };
         reader.readAsDataURL(file);
         break;
@@ -262,7 +278,19 @@ export function MannequinStage({
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find((file) => file.type.startsWith("image/"));
 
-    if (!imageFile) return;
+    if (!imageFile) {
+      console.warn('No image file found in dropped files');
+      setDragPosition(null);
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (imageFile.size > maxSize) {
+      console.error('Dropped image too large. Please use an image smaller than 5MB.');
+      setDragPosition(null);
+      return;
+    }
 
     // Determine zone from drop position
     let zone: OutfitItem["body_zone"] = "torso";
@@ -275,12 +303,22 @@ export function MannequinStage({
     // Convert to data URL
     const reader = new FileReader();
     reader.onloadend = () => {
+      if (!reader.result) {
+        console.error('Failed to read dropped image');
+        setDragPosition(null);
+        return;
+      }
+      
       const imageUrl = reader.result as string;
       onImagePaste(imageUrl, zone);
 
       // Visual feedback
       setItemAddedZone(zone);
       setTimeout(() => setItemAddedZone(null), 600);
+    };
+    reader.onerror = () => {
+      console.error('Error reading dropped image');
+      setDragPosition(null);
     };
     reader.readAsDataURL(imageFile);
 
@@ -398,16 +436,17 @@ export function MannequinStage({
             : "opacity 0.4s ease-in-out",
         }}
       >
-        <img
+        <Image
           src="/mannequin-simple.png"
           alt="Mannequin"
+          width={240}
+          height={240}
           className="mannequin-image mannequin-circular"
           style={{
-            width: "240px",
-            height: "240px",
             aspectRatio: "1 / 1",
             objectFit: "cover",
           }}
+          priority
         />
       </div>
 
@@ -475,12 +514,17 @@ export function MannequinStage({
                 maxWidth: "120px",
               }}
             >
-              <img
-                src={item.imageUrl}
-                alt={item.description}
-                className="w-full h-auto rounded object-cover"
-                style={{ maxHeight: "120px" }}
-              />
+              {item.imageUrl && (
+                <div className="relative w-full h-auto rounded overflow-hidden" style={{ maxHeight: "120px" }}>
+                  <Image
+                    src={item.imageUrl}
+                    alt={item.description}
+                    fill
+                    className="object-cover"
+                    sizes="120px"
+                  />
+                </div>
+              )}
             </div>
           );
         })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   UserItem,
   OutfitPreferences,
@@ -71,9 +72,30 @@ export function OutfitInputPanel({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        console.error('Invalid file type. Please select an image file.');
+        e.target.value = "";
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        console.error('File size too large. Please select an image smaller than 5MB.');
+        e.target.value = "";
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        if (reader.result) {
+          setImagePreview(reader.result as string);
+        }
+      };
+      reader.onerror = () => {
+        console.error('Error reading image file');
+        e.target.value = "";
       };
       reader.readAsDataURL(file);
     }
@@ -101,11 +123,15 @@ export function OutfitInputPanel({
               <div className="flex-1">
                 <p className="text-sm text-gray-900">{item.description}</p>
                 {item.imageUrl && (
-                  <img
-                    src={item.imageUrl}
-                    alt="Item"
-                    className="mt-2 w-16 h-16 object-cover rounded"
-                  />
+                  <div className="mt-2 relative w-16 h-16 rounded overflow-hidden">
+                    <Image
+                      src={item.imageUrl}
+                      alt="Item"
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                  </div>
                 )}
               </div>
               <button
@@ -149,11 +175,15 @@ export function OutfitInputPanel({
             </button>
           </div>
           {imagePreview && (
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="w-20 h-20 object-cover rounded mt-2"
-            />
+            <div className="relative w-20 h-20 rounded overflow-hidden mt-2">
+              <Image
+                src={imagePreview}
+                alt="Preview"
+                fill
+                className="object-cover"
+                sizes="80px"
+              />
+            </div>
           )}
         </div>
       </div>
