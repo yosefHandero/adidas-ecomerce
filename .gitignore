@@ -27,6 +27,10 @@
 # IDE
 .idea/
 .expo/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.cursor/
 
 # Windows reserved names
 nul
