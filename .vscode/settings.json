@@ -10,7 +10,7 @@
   "typescript.updateImportsOnFileMove.enabled": "always",
   "typescript.suggest.autoImports": true,
   "typescript.preferences.quoteStyle": "double",
-  
+
   // Performance Settings
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -38,7 +38,7 @@
     "**/node_modules": true,
     "**/.turbo": true
   },
-  
+
   // Editor Performance
   "editor.quickSuggestions": {
     "other": true,
@@ -50,12 +50,12 @@
   "editor.inlineSuggest.enabled": true,
   "editor.bracketPairColorization.enabled": true,
   "editor.guides.bracketPairs": "active",
-  
+
   // File Associations
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  
+
   // Tailwind CSS
   "tailwindCSS.experimental.classRegex": [
     ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
@@ -65,7 +65,7 @@
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  
+
   // ESLint
   "eslint.validate": [
     "javascript",
@@ -74,7 +74,7 @@
     "typescriptreact"
   ],
   "eslint.workingDirectories": ["."],
-  
+
   // Formatting
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -96,18 +96,20 @@
   "[jsonc]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  
+
   // Next.js Specific
   "files.encoding": "utf8",
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
-  
+
   // Git
+  "git.enabled": true,
+  "git.autorefresh": false,
   "git.enableSmartCommit": true,
   "git.confirmSync": false,
   "git.autofetch": true,
-  
+
   // Extensions Recommendations (for team consistency)
   "extensions.recommendations": [
     "dbaeumer.vscode-eslint",
