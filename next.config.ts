@@ -16,14 +16,6 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
-      {
-        protocol: 'https',
-        hostname: '**.pexels.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'source.unsplash.com',
-      },
     ],
     // Allow data URLs for user-uploaded images
     dangerouslyAllowSVG: true,

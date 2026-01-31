@@ -1,93 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { searchOutfitImages, searchPexelsImages, type OutfitImage } from '@/lib/imageSearch';
-import { SearchOutfitImagesRequestSchema, type ApiErrorResponse, type SearchOutfitImagesResponse } from '@/lib/validation';
-import { rateLimit, getClientIP } from '@/lib/rateLimit';
+import { NextRequest } from 'next/server';
+import { handlerWrapper } from '@/server/api/handler-wrapper';
+import { SearchOutfitImagesRequestSchema } from '@/lib/validation';
+import { z } from 'zod';
+import { searchOutfitImages, type OutfitImage } from '@/lib/imageSearch';
+import { logger } from '@/server/logger/logger';
+
+type SearchOutfitImagesRequest = z.infer<typeof SearchOutfitImagesRequestSchema>;
 
 export async function POST(request: NextRequest) {
-  try {
-    // Rate limiting: 20 requests per minute per IP
-    const clientIP = getClientIP(request);
-    const rateLimitResult = rateLimit(clientIP, 20, 60 * 1000);
-    if (!rateLimitResult.allowed) {
-      const errorResponse: ApiErrorResponse = {
-        error: `Too many requests. Please try again in ${rateLimitResult.retryAfter} second${rateLimitResult.retryAfter !== 1 ? 's' : ''}.`,
-        code: 'RATE_LIMITED',
-      };
-      return NextResponse.json(errorResponse, { 
-        status: 429,
-        headers: {
-          'X-RateLimit-Limit': '20',
-          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-          'X-RateLimit-Reset': new Date(rateLimitResult.resetAt).toISOString(),
-          'Retry-After': String(rateLimitResult.retryAfter || 60),
-        },
-      });
-    }
+  return handlerWrapper<SearchOutfitImagesRequest, { images: OutfitImage[] }>(
+    request,
+    {
+      schema: SearchOutfitImagesRequestSchema,
+      rateLimitMax: 20,
+      rateLimitWindowMs: 60 * 1000, // 1 minute
+      timeoutMs: 10000, // 10 seconds for image search
+    },
+    async (data) => {
+      const { variation, count = 3, userItems } = data;
 
-    // Parse and validate request body
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      const errorResponse: ApiErrorResponse = { error: 'Invalid JSON in request body' };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
+      // Validate query length to prevent abuse
+      const searchQuery = variation.items
+        .map(item => item.description)
+        .join(' ');
 
-    // Validate with zod schema
-    const validationResult = SearchOutfitImagesRequestSchema.safeParse(body);
-    if (!validationResult.success) {
-      const errorResponse: ApiErrorResponse = {
-        error: 'Invalid request data',
-        code: 'VALIDATION_ERROR',
-      };
-      const firstError = validationResult.error.issues[0];
-      if (firstError) {
-        errorResponse.error = `${firstError.path.join('.')}: ${firstError.message}`;
+      if (searchQuery.length > 500) {
+        throw new Error('Search query too long');
       }
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
 
-    const { variation, count } = validationResult.data;
-
-    // Validate query length to prevent abuse
-    const searchQuery = variation.items
-      .map(item => item.description)
-      .join(' ');
-    
-    if (searchQuery.length > 500) {
-      const errorResponse: ApiErrorResponse = {
-        error: 'Search query too long',
-        code: 'QUERY_TOO_LONG',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-
-    // Try Pexels first, then fallback to Unsplash
-    let images: OutfitImage[] = [];
-    try {
-      images = await searchPexelsImages(variation, count);
-    } catch (pexelsError) {
-      console.warn('Pexels search failed, falling back to Unsplash:', pexelsError);
+      let images: OutfitImage[] = [];
       try {
-        images = await searchOutfitImages(variation, count);
-      } catch (unsplashError) {
-        console.error('Both image search services failed:', unsplashError);
+        images = await searchOutfitImages(variation, count, userItems);
+      } catch (error) {
+        logger.error('Image search failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         // Return empty array instead of error for graceful degradation
         images = [];
       }
+
+      return { images };
     }
-
-    const response: SearchOutfitImagesResponse = { images };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Image search API error:', error);
-
-    const errorResponse: ApiErrorResponse = {
-      error: 'Failed to search images',
-    };
-
-    return NextResponse.json(errorResponse, { status: 500 });
-  }
+  );
 }
-

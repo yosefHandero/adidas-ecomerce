@@ -1,25 +1,17 @@
 import type { NextRequest } from 'next/server';
+import { logger } from '../logger/logger';
 
-// Simple in-memory rate limiter (for production, use Redis or similar)
+/**
+ * Rate limit entry in memory store
+ */
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Clean up old entries every 5 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (entry.resetAt < now) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }, 5 * 60 * 1000);
-}
-
+/**
+ * Rate limit result
+ */
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
@@ -28,7 +20,31 @@ export interface RateLimitResult {
 }
 
 /**
- * Rate limit by IP address
+ * In-memory rate limit store
+ * ⚠️ WARNING: This is not production-ready for multi-instance deployments.
+ * For production, use Redis or a distributed cache.
+ */
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// Clean up old entries every 5 minutes
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [key, entry] of rateLimitStore.entries()) {
+      if (entry.resetAt < now) {
+        rateLimitStore.delete(key);
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      logger.debug(`Cleaned up ${cleaned} expired rate limit entries`);
+    }
+  }, 5 * 60 * 1000);
+}
+
+/**
+ * Rate limit by identifier (IP address or user ID)
  * @param identifier - IP address or user ID
  * @param maxRequests - Maximum requests allowed
  * @param windowMs - Time window in milliseconds
@@ -36,7 +52,7 @@ export interface RateLimitResult {
  */
 export function rateLimit(
   identifier: string,
-  maxRequests: number = 3,
+  maxRequests: number = 10,
   windowMs: number = 60 * 1000 // 1 minute default
 ): RateLimitResult {
   const now = Date.now();
@@ -59,6 +75,12 @@ export function rateLimit(
   if (entry.count >= maxRequests) {
     // Rate limit exceeded
     const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    logger.warn('Rate limit exceeded', {
+      identifier,
+      maxRequests,
+      windowMs,
+      retryAfter,
+    });
     return {
       allowed: false,
       remaining: 0,
@@ -78,6 +100,7 @@ export function rateLimit(
 
 /**
  * Get client IP from NextRequest
+ * Handles various proxy headers (x-forwarded-for, x-real-ip, etc.)
  */
 export function getClientIP(request: NextRequest): string {
   // Try various headers (for proxies/load balancers)
@@ -85,16 +108,15 @@ export function getClientIP(request: NextRequest): string {
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
-  
+
   const realIP = request.headers.get('x-real-ip');
   if (realIP) {
     return realIP;
   }
 
-  // Try Next.js specific IP (not available in NextRequest, use headers instead)
-  const ip = request.headers.get('x-vercel-forwarded-for');
-  if (ip) {
-    return ip.split(',')[0].trim();
+  const vercelIP = request.headers.get('x-vercel-forwarded-for');
+  if (vercelIP) {
+    return vercelIP.split(',')[0].trim();
   }
 
   // Fallback (won't work in serverless, but helps in dev)

@@ -1,10 +1,21 @@
-export type Occasion = 'Street' | 'Work' | 'Gym' | 'Date' | 'Travel';
+// Single source of truth for domain enums (used by both TS types and Zod schemas)
+export const OCCASIONS = ["Street", "Work", "Gym", "Date", "Travel"] as const;
+export type Occasion = (typeof OCCASIONS)[number];
 
-export type Fit = 'Slim' | 'Regular' | 'Oversized';
+export const FITS = ["Slim", "Regular", "Oversized"] as const;
+export type Fit = (typeof FITS)[number];
 
-export type Weather = 'Warm' | 'Cold' | 'Rain';
+export const WEATHERS = ["Warm", "Cold", "Rain"] as const;
+export type Weather = (typeof WEATHERS)[number];
 
-export type Budget = '$' | '$$' | '$$$';
+export const BUDGETS = ["$", "$$", "$$$"] as const;
+export type Budget = (typeof BUDGETS)[number];
+
+export const VARIATION_NAMES = ["Minimal", "Street", "Elevated"] as const;
+export type VariationName = (typeof VARIATION_NAMES)[number];
+
+export const BODY_ZONES = ["head", "torso", "legs", "feet", "accessories"] as const;
+export type BodyZone = (typeof BODY_ZONES)[number];
 
 export interface UserItem {
   id: string;
@@ -19,15 +30,23 @@ export interface OutfitItem {
   material?: string;
   style_tags: string[];
   why_it_matches: string;
-  body_zone: 'head' | 'torso' | 'legs' | 'feet' | 'accessories';
+  body_zone: BodyZone;
 }
 
 export interface OutfitVariation {
-  name: 'Minimal' | 'Street' | 'Elevated';
+  name: VariationName;
   suggestion: string;
+  /** Man-specific suggestion; falls back to `suggestion` when absent */
+  suggestion_man?: string;
+  /** Woman-specific suggestion; falls back to `suggestion` when absent */
+  suggestion_woman?: string;
   items: OutfitItem[];
   color_palette: string[];
   styling_tips: string[];
+  /** Man-specific tips; falls back to `styling_tips` when absent */
+  styling_tips_man?: string[];
+  /** Woman-specific tips; falls back to `styling_tips` when absent */
+  styling_tips_woman?: string[];
 }
 
 export interface OutfitResponse {
@@ -41,19 +60,3 @@ export interface OutfitPreferences {
   weather: Weather;
   budget: Budget;
 }
-
-// API Response types
-export interface ImageSearchResponse {
-  images: Array<{
-    id: string;
-    url: string;
-    thumbnail: string;
-    photographer?: string;
-    photographerUrl?: string;
-    description?: string;
-  }>;
-}
-
-// UI State types
-export type UIState = 'empty' | 'loading' | 'hasItems' | 'error';
-

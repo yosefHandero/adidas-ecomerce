@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useRef, useEffect } from "react";
 import {
   UserItem,
   OutfitPreferences,
@@ -9,11 +8,19 @@ import {
   Fit,
   Weather,
   Budget,
+  OCCASIONS,
+  FITS,
+  WEATHERS,
+  BUDGETS,
 } from "@/lib/types";
+
+export type MannequinModel = "man" | "woman";
 
 interface OutfitInputPanelProps {
   userItems: UserItem[];
   preferences: OutfitPreferences;
+  model: MannequinModel;
+  onModelChange: (model: MannequinModel) => void;
   onItemsChange: (items: UserItem[]) => void;
   onPreferencesChange: (preferences: OutfitPreferences) => void;
   onGenerate: () => void;
@@ -23,13 +30,29 @@ interface OutfitInputPanelProps {
 export function OutfitInputPanel({
   userItems,
   preferences,
+  model,
+  onModelChange,
   onItemsChange,
   onPreferencesChange,
   onGenerate,
   isGenerating,
 }: OutfitInputPanelProps) {
   const [newItemDescription, setNewItemDescription] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<"occasion" | "fit" | "weather" | "budget" | null>(null);
+  const occasionRef = useRef<HTMLDivElement>(null);
+  const fitRef = useRef<HTMLDivElement>(null);
+  const weatherRef = useRef<HTMLDivElement>(null);
+  const budgetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const ref = openDropdown === "occasion" ? occasionRef : openDropdown === "fit" ? fitRef : openDropdown === "weather" ? weatherRef : openDropdown === "budget" ? budgetRef : null;
+      if (ref?.current && !ref.current.contains(target)) setOpenDropdown(null);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openDropdown]);
 
   const handleAddItem = () => {
     const trimmed = newItemDescription.trim();
@@ -47,12 +70,10 @@ export function OutfitInputPanel({
     const newItem: UserItem = {
       id: Date.now().toString(),
       description: trimmed,
-      imageUrl: imagePreview || undefined,
     };
 
     onItemsChange([...userItems, newItem]);
     setNewItemDescription("");
-    setImagePreview(null);
 
     // Trigger item added feedback
     if (typeof window !== "undefined") {
@@ -69,74 +90,71 @@ export function OutfitInputPanel({
     onItemsChange(userItems.filter((item) => item.id !== id));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        console.error('Invalid file type. Please select an image file.');
-        e.target.value = "";
-        return;
-      }
-      
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        console.error('File size too large. Please select an image smaller than 5MB.');
-        e.target.value = "";
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (reader.result) {
-          setImagePreview(reader.result as string);
-        }
-      };
-      reader.onerror = () => {
-        console.error('Error reading image file');
-        e.target.value = "";
-      };
-      reader.readAsDataURL(file);
-    }
-    // Clear the input so the same file can be selected again
-    e.target.value = "";
-  };
-
   return (
-    <div className="h-full min-h-[600px] flex flex-col bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">
-        Build Your Outfit
-      </h2>
+    <div className="h-full min-h-[600px] flex flex-col premium-card rounded-2xl sm:rounded-3xl p-5 sm:p-6 overflow-y-auto">
+      <div className="mb-6 pb-4 border-b border-[var(--border)]">
+        <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text)] flex items-center mb-4">
+          <svg
+            className="w-6 h-6 sm:w-7 sm:h-7 text-[var(--primary)] mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
+          </svg>
+          Build Your Outfit
+        </h2>
+        {/* Model selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[var(--text-muted)]">Model</span>
+          <div className="inline-flex p-1 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+            <button
+              type="button"
+              onClick={() => onModelChange("man")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                model === "man"
+                  ? "bg-[var(--primary)] text-[var(--on-primary)] shadow-sm"
+                  : "text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              Man
+            </button>
+            <button
+              type="button"
+              onClick={() => onModelChange("woman")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                model === "woman"
+                  ? "bg-[var(--primary)] text-[var(--on-primary)] shadow-sm"
+                  : "text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              Woman
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Items Section */}
       <div className="mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Your Items
-        </label>
-        <div className="space-y-3 mb-3">
+        <div className="space-y-2.5 mb-4">
           {userItems.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+              className="flex items-center justify-between p-3 bg-[var(--surface-2)] rounded-xl border border-[var(--border)] shadow-sm hover:shadow-md transition-all group"
             >
-              <div className="flex-1">
-                <p className="text-sm text-gray-900">{item.description}</p>
-                {item.imageUrl && (
-                  <div className="mt-2 relative w-16 h-16 rounded overflow-hidden">
-                    <Image
-                      src={item.imageUrl}
-                      alt="Item"
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
-                  </div>
-                )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--text)] truncate">
+                  {item.description}
+                </p>
               </div>
               <button
                 onClick={() => handleRemoveItem(item.id)}
-                className="ml-3 text-red-500 hover:text-red-700 text-lg"
+                className="ml-3 text-[var(--text-muted)] hover:text-[var(--error)] text-xl font-light w-6 h-6 flex items-center justify-center rounded-full hover:bg-[var(--error)]/10 transition-all flex-shrink-0"
                 aria-label="Remove item"
               >
                 ×
@@ -145,180 +163,495 @@ export function OutfitInputPanel({
           ))}
         </div>
 
-        <div className="space-y-2">
-          <input
-            type="text"
-            value={newItemDescription}
-            onChange={(e) => setNewItemDescription(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleAddItem()}
-            placeholder="Describe an item (e.g., 'Black leather jacket')"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <div className="flex gap-2">
-            <label className="flex-1 cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <span className="block px-4 py-2 text-sm text-center border border-gray-300 rounded-lg hover:bg-gray-50">
-                {imagePreview ? "Image Selected" : "Upload Image (Optional)"}
-              </span>
-            </label>
-            <button
-              onClick={handleAddItem}
-              disabled={!newItemDescription.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="space-y-3">
+          <div className="relative">
+            <input
+              type="text"
+              value={newItemDescription}
+              onChange={(e) => setNewItemDescription(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleAddItem()}
+              placeholder="Describe an item (e.g., 'Black leather jacket')"
+              className="premium-input w-full px-4 py-3 pl-10 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] placeholder:text-[var(--text-muted)] text-sm"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Add
-            </button>
-          </div>
-          {imagePreview && (
-            <div className="relative w-20 h-20 rounded overflow-hidden mt-2">
-              <Image
-                src={imagePreview}
-                alt="Preview"
-                fill
-                className="object-cover"
-                sizes="80px"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
               />
-            </div>
-          )}
+            </svg>
+          </div>
+          <button
+            onClick={handleAddItem}
+            disabled={!newItemDescription.trim()}
+            className="w-full px-5 py-3 bg-[var(--primary)] text-[var(--on-primary)] rounded-xl hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm shadow-md hover:shadow-lg transition-all disabled:hover:shadow-md"
+          >
+            Add
+          </button>
         </div>
       </div>
 
       {/* Preferences */}
-      <div className="space-y-4 mb-6">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+      <div className="space-y-5 mb-6">
+        <div ref={occasionRef} className="relative">
+          <label className="flex items-center text-sm font-semibold text-[var(--text)] mb-2.5">
+            <svg
+              className="w-4 h-4 text-[var(--text-muted)] mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
             Occasion
           </label>
-          <select
-            value={preferences.occasion}
-            onChange={(e) =>
-              onPreferencesChange({
-                ...preferences,
-                occasion: e.target.value as Occasion,
-              })
-            }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "occasion" ? null : "occasion")}
+            className="premium-input w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] text-sm text-left flex items-center justify-between"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === "occasion"}
           >
-            {(["Street", "Work", "Gym", "Date", "Travel"] as Occasion[]).map(
-              (occ) => (
-                <option key={occ} value={occ}>
-                  {occ}
-                </option>
-              )
+            {preferences.occasion}
+            <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+            {openDropdown === "occasion" && (
+              <ul
+                className="absolute z-20 mt-1 w-full py-1 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] shadow-lg"
+                role="listbox"
+              >
+                {OCCASIONS.map((occ) => (
+                  <li
+                    key={occ}
+                    role="option"
+                    aria-selected={preferences.occasion === occ}
+                    onClick={() => {
+                      onPreferencesChange({ ...preferences, occasion: occ });
+                      setOpenDropdown(null);
+                    }}
+                    className={`px-4 py-3 text-sm cursor-pointer border-b border-[var(--border)] last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${
+                      preferences.occasion === occ
+                        ? "bg-[var(--surface)] text-[var(--text)]"
+                        : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {occ}
+                  </li>
+                ))}
+              </ul>
             )}
-          </select>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Vibe: {preferences.vibe}/100 (
-            {preferences.vibe < 33
-              ? "Minimal"
-              : preferences.vibe < 67
-              ? "Balanced"
-              : "Bold"}
-            )
+          <label className="flex items-center text-sm font-semibold text-[var(--text)] mb-3">
+            <svg
+              className="w-4 h-4 text-[var(--text-muted)] mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            Vibe
           </label>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={preferences.vibe}
-            onChange={(e) =>
-              onPreferencesChange({
-                ...preferences,
-                vibe: parseInt(e.target.value),
-              })
-            }
-            className="w-full"
-          />
+          <div className="flex gap-2.5">
+            {/* Minimal Card */}
+            <button
+              type="button"
+              onClick={() =>
+                onPreferencesChange({
+                  ...preferences,
+                  vibe: 15,
+                })
+              }
+              className={`relative flex-1 p-3 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${
+                preferences.vibe < 33
+                  ? "border-[var(--primary)] bg-[rgba(46,204,113,0.10)] shadow-md"
+                  : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--primary)]/50 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    preferences.vibe < 33 ? "bg-[var(--primary)]/20" : "bg-[var(--surface)]"
+                  }`}
+                >
+                  <svg
+                    className={`w-4 h-4 ${
+                      preferences.vibe < 33 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-xs font-semibold ${
+                    preferences.vibe < 33 ? "text-[var(--primary)]" : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  Minimal
+                </span>
+              </div>
+              {preferences.vibe < 33 && (
+                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[var(--primary)] rounded-full"></div>
+              )}
+            </button>
+
+            {/* Balanced Card */}
+            <button
+              type="button"
+              onClick={() =>
+                onPreferencesChange({
+                  ...preferences,
+                  vibe: 50,
+                })
+              }
+              className={`relative flex-1 p-3 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${
+                preferences.vibe >= 33 && preferences.vibe < 67
+                  ? "border-[var(--primary)] bg-[rgba(46,204,113,0.10)] shadow-md"
+                  : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--primary)]/50 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    preferences.vibe >= 33 && preferences.vibe < 67
+                      ? "bg-[var(--primary)]/20"
+                      : "bg-[var(--surface)]"
+                  }`}
+                >
+                  <svg
+                    className={`w-4 h-4 ${
+                      preferences.vibe >= 33 && preferences.vibe < 67
+                        ? "text-[var(--primary)]"
+                        : "text-[var(--text-muted)]"
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2h-2a2 2 0 01-2-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-xs font-semibold ${
+                    preferences.vibe >= 33 && preferences.vibe < 67
+                      ? "text-[var(--primary)]"
+                      : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  Balanced
+                </span>
+              </div>
+              {preferences.vibe >= 33 && preferences.vibe < 67 && (
+                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[var(--primary)] rounded-full"></div>
+              )}
+            </button>
+
+            {/* Bold Card */}
+            <button
+              type="button"
+              onClick={() =>
+                onPreferencesChange({
+                  ...preferences,
+                  vibe: 85,
+                })
+              }
+              className={`relative flex-1 p-3 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] ${
+                preferences.vibe >= 67
+                  ? "border-[var(--accent)] bg-[rgba(244,196,48,0.10)] shadow-md"
+                  : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--accent)]/50 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    preferences.vibe >= 67 ? "bg-[var(--accent)]/20" : "bg-[var(--surface)]"
+                  }`}
+                >
+                  <svg
+                    className={`w-4 h-4 ${
+                      preferences.vibe >= 67
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--text-muted)]"
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                </div>
+                <span
+                  className={`text-xs font-semibold ${
+                    preferences.vibe >= 67
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  Bold
+                </span>
+              </div>
+              {preferences.vibe >= 67 && (
+                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[var(--accent)] rounded-full"></div>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div ref={fitRef} className="relative">
+          <label className="flex items-center text-sm font-semibold text-[var(--text)] mb-2.5">
+            <svg
+              className="w-4 h-4 text-[var(--text-muted)] mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
             Fit
           </label>
-          <select
-            value={preferences.fit}
-            onChange={(e) =>
-              onPreferencesChange({
-                ...preferences,
-                fit: e.target.value as Fit,
-              })
-            }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "fit" ? null : "fit")}
+            className="premium-input w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] text-sm text-left flex items-center justify-between"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === "fit"}
           >
-            {(["Slim", "Regular", "Oversized"] as Fit[]).map((fit) => (
-              <option key={fit} value={fit}>
-                {fit}
-              </option>
-            ))}
-          </select>
+            {preferences.fit}
+            <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {openDropdown === "fit" && (
+            <ul
+              className="absolute z-20 mt-1 w-full py-1 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] shadow-lg"
+              role="listbox"
+            >
+              {FITS.map((fit) => (
+                <li
+                  key={fit}
+                  role="option"
+                  aria-selected={preferences.fit === fit}
+                  onClick={() => {
+                    onPreferencesChange({ ...preferences, fit });
+                    setOpenDropdown(null);
+                  }}
+                  className={`px-4 py-3 text-sm cursor-pointer border-b border-[var(--border)] last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${
+                    preferences.fit === fit
+                      ? "bg-[var(--surface)] text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {fit}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div ref={weatherRef} className="relative">
+          <label className="flex items-center text-sm font-semibold text-[var(--text)] mb-2.5">
+            <svg
+              className="w-4 h-4 text-[var(--text-muted)] mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 009.78 2.096A4.001 4.001 0 0015.5 15H7a4 4 0 01-4-4z"
+              />
+            </svg>
             Weather
           </label>
-          <select
-            value={preferences.weather}
-            onChange={(e) =>
-              onPreferencesChange({
-                ...preferences,
-                weather: e.target.value as Weather,
-              })
-            }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "weather" ? null : "weather")}
+            className="premium-input w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] text-sm text-left flex items-center justify-between"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === "weather"}
           >
-            {(["Warm", "Cold", "Rain"] as Weather[]).map((weather) => (
-              <option key={weather} value={weather}>
-                {weather}
-              </option>
-            ))}
-          </select>
+            {preferences.weather}
+            <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {openDropdown === "weather" && (
+            <ul
+              className="absolute z-20 mt-1 w-full py-1 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] shadow-lg"
+              role="listbox"
+            >
+              {WEATHERS.map((weather) => (
+                <li
+                  key={weather}
+                  role="option"
+                  aria-selected={preferences.weather === weather}
+                  onClick={() => {
+                    onPreferencesChange({ ...preferences, weather });
+                    setOpenDropdown(null);
+                  }}
+                  className={`px-4 py-3 text-sm cursor-pointer border-b border-[var(--border)] last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${
+                    preferences.weather === weather
+                      ? "bg-[var(--surface)] text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {weather}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div ref={budgetRef} className="relative">
+          <label className="flex items-center text-sm font-semibold text-[var(--text)] mb-2.5">
+            <svg
+              className="w-4 h-4 text-[var(--text-muted)] mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
             Budget
           </label>
-          <select
-            value={preferences.budget}
-            onChange={(e) =>
-              onPreferencesChange({
-                ...preferences,
-                budget: e.target.value as Budget,
-              })
-            }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          <button
+            type="button"
+            onClick={() => setOpenDropdown(openDropdown === "budget" ? null : "budget")}
+            className="premium-input w-full px-4 py-3 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] text-sm text-left flex items-center justify-between"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === "budget"}
           >
-            {(["$", "$$", "$$$"] as Budget[]).map((budget) => (
-              <option key={budget} value={budget}>
-                {budget === "$"
-                  ? "Budget-Friendly"
-                  : budget === "$$"
-                  ? "Mid-Range"
-                  : "Premium"}
-              </option>
-            ))}
-          </select>
+            {preferences.budget === "$" ? "Budget-Friendly" : preferences.budget === "$$" ? "Mid-Range" : "Premium"}
+            <svg className="w-4 h-4 text-[var(--text-muted)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {openDropdown === "budget" && (
+            <ul
+              className="absolute z-20 mt-1 w-full py-1 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] shadow-lg"
+              role="listbox"
+            >
+              {BUDGETS.map((budget) => (
+                <li
+                  key={budget}
+                  role="option"
+                  aria-selected={preferences.budget === budget}
+                  onClick={() => {
+                    onPreferencesChange({ ...preferences, budget });
+                    setOpenDropdown(null);
+                  }}
+                  className={`px-4 py-3 text-sm cursor-pointer border-b border-[var(--border)] last:border-b-0 first:rounded-t-xl last:rounded-b-xl ${
+                    preferences.budget === budget
+                      ? "bg-[var(--surface)] text-[var(--text)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {budget === "$" ? "Budget-Friendly" : budget === "$$" ? "Mid-Range" : "Premium"}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
-      {/* Generate Button */}
+      {/* Premium Generate Button */}
       <button
         onClick={onGenerate}
         disabled={userItems.length === 0 || isGenerating}
-        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+        className="premium-button w-full py-4 bg-[var(--primary)] text-[var(--on-primary)] font-semibold rounded-xl hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100 disabled:hover:shadow-lg relative overflow-hidden group"
         type="button"
         aria-label={isGenerating ? "Generating outfit..." : "Generate outfit"}
       >
-        {isGenerating ? "Generating..." : "Build My Outfit"}
+        <span className="relative z-10 flex items-center justify-center gap-2">
+          {isGenerating ? (
+            <>
+              <svg
+                className="w-5 h-5 button-spinner"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.582m-15.356-2a8.001 8.001 0 0015.357 2m0 0H15"
+                />
+              </svg>
+              Generating...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Build My Outfit
+            </>
+          )}
+        </span>
+        {!isGenerating && (
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--text)]/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+        )}
       </button>
     </div>
   );

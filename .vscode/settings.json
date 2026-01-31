@@ -56,7 +56,8 @@
     "*.css": "tailwindcss"
   },
 
-  // Tailwind CSS
+  // Tailwind CSS (validate: false silences false "} expected" in globals.css)
+  "tailwindCSS.validate": false,
   "tailwindCSS.experimental.classRegex": [
     ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
     ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^\"'`]*)(?:'|\"|`)"]

@@ -1,17 +1,18 @@
 "use client";
 
 interface EmptyStateOverlayProps {
-  showInactivityHint: boolean;
+  showInactivityHint?: boolean;
   onInteraction: () => void;
+  isHovered?: boolean;
 }
 
 export function EmptyStateOverlay({
-  showInactivityHint,
+  showInactivityHint = false,
   onInteraction,
 }: EmptyStateOverlayProps) {
   return (
     <div
-      className="absolute inset-0 pointer-events-none z-10"
+      className="absolute inset-0 pointer-events-none z-10 flex flex-col items-center justify-end pb-16"
       onClick={onInteraction}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -23,21 +24,15 @@ export function EmptyStateOverlay({
       tabIndex={0}
       aria-label="Empty state - click to interact"
     >
-      {/* Primary Message - positioned below the mannequin (centered horizontally, below center vertically) */}
-      <h2
-        className="text-3xl font-bold text-gray-900 text-center px-4 absolute left-1/2 transform -translate-x-1/2"
-        style={{ top: "calc(50% + 160px)" }}
-      >
+      <h2 className="text-3xl font-bold text-[var(--text)] text-center px-4 mb-2">
         Start with one item
       </h2>
-
-      {/* Inactivity hint */}
+      <p className="text-base text-[var(--text-muted)] text-center px-4">
+        I will build the rest of your look
+      </p>
       {showInactivityHint && (
-        <p
-          className="text-sm text-gray-600 text-center px-4 absolute left-1/2 transform -translate-x-1/2"
-          style={{ top: "calc(50% + 200px)" }}
-        >
-          Tip: Drag & drop or paste an image for best results
+        <p className="text-sm text-[var(--text-muted)] text-center px-4 mt-3 animate-fade-in">
+          Tip: Describe an item above to get started
         </p>
       )}
     </div>

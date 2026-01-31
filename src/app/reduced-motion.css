@@ -1,0 +1,7 @@
+/* Reduced motion overrides - drop zone removed */
+@media (prefers-reduced-motion: reduce) {
+  /* Mannequin generating state - no animation */
+  .mannequin-generating {
+    animation: none !important;
+  }
+}
