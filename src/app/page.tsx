@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { OutfitInputPanel } from "@/components/OutfitInputPanel";
 import { MannequinStage } from "@/components/MannequinStage";
 import { ResetButton } from "@/components/ResetButton";
@@ -10,6 +10,14 @@ import { OutfitVariationCard } from "@/components/OutfitVariationCard";
 import { UserItem, OutfitPreferences } from "@/lib/types";
 import { useOutfitGeneration } from "@/hooks/useOutfitGeneration";
 import { useSuggestionImage } from "@/hooks/useSuggestionImage";
+import { resolveUserItems } from "@/lib/mannequinResolution";
+import {
+  getDefaultEnabledClothes,
+  CLOTHING,
+} from "@/lib/clothingCatalog";
+import { parseOutfitText } from "@/lib/outfitParser";
+import { resolveParsedItemsToCatalog } from "@/lib/clothingResolver";
+import type { ResolvedWear } from "@/lib/clothingResolver";
 
 const DEFAULT_PREFERENCES: OutfitPreferences = {
   occasion: "Street",
@@ -24,6 +32,14 @@ export default function Home() {
   const [preferences, setPreferences] =
     useState<OutfitPreferences>(DEFAULT_PREFERENCES);
   const [model, setModel] = useState<"man" | "woman">("man");
+  const [enabledClothes, setEnabledClothes] = useState<Record<string, boolean>>(
+    getDefaultEnabledClothes,
+  );
+  const [activeWear, setActiveWear] = useState<ResolvedWear[] | null>(null);
+  const [unmatchedItems, setUnmatchedItems] = useState<string[]>([]);
+  const [isApplyingOutfit, setIsApplyingOutfit] = useState(false);
+  const [globalTint, setGlobalTint] = useState<string | undefined>(undefined);
+  const [tintByItemId, setTintByItemId] = useState<Record<string, string>>({});
 
   const {
     variations,
@@ -48,12 +64,54 @@ export default function Home() {
     // Placeholder for future implementation
   };
 
+  const [hiddenItemIds, setHiddenItemIds] = useState<Set<string>>(new Set());
+
+  const resolvedItems = useMemo(() => resolveUserItems(userItems), [userItems]);
+
+  const handleToggleItemVisibility = (itemId: string) => {
+    setHiddenItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  const handleApplyOutfitText = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setIsApplyingOutfit(true);
+    setUnmatchedItems([]);
+    setActiveWear(null);
+    setTimeout(() => {
+      const parsed = parseOutfitText(trimmed);
+      const { resolved, unmatched } = resolveParsedItemsToCatalog(
+        parsed,
+        CLOTHING,
+      );
+      const nextEnabled: Record<string, boolean> = {};
+      for (const c of CLOTHING) {
+        nextEnabled[c.id] = resolved.some((r) => r.id === c.id);
+      }
+      setEnabledClothes(nextEnabled);
+      setActiveWear(resolved);
+      setUnmatchedItems(unmatched);
+      setIsApplyingOutfit(false);
+    }, 0);
+  };
+
   const handleReset = () => {
     resetGeneration();
     resetImage();
     setUserItems([]);
+    setHiddenItemIds(new Set());
     setPreferences(DEFAULT_PREFERENCES);
     setModel("man");
+    setEnabledClothes(getDefaultEnabledClothes());
+    setActiveWear(null);
+    setUnmatchedItems([]);
+    setGlobalTint(undefined);
+    setTintByItemId({});
   };
 
   const currentItems =
@@ -84,6 +142,15 @@ export default function Home() {
               userItems={userItems}
               preferences={preferences}
               model={model}
+              enabledClothes={enabledClothes}
+              onEnabledClothesChange={setEnabledClothes}
+              globalTint={globalTint}
+              onGlobalTintChange={setGlobalTint}
+              tintByItemId={tintByItemId}
+              onTintByItemIdChange={setTintByItemId}
+              unmatchedItems={unmatchedItems}
+              onApplyOutfitText={handleApplyOutfitText}
+              isApplyingOutfit={isApplyingOutfit}
               onModelChange={setModel}
               onItemsChange={setUserItems}
               onPreferencesChange={setPreferences}
@@ -109,9 +176,17 @@ export default function Home() {
             ) : (
               <MannequinStage
                 model={model}
+                enabledClothes={enabledClothes}
+                activeWear={activeWear}
+                unmatchedItems={unmatchedItems}
+                globalTint={globalTint}
+                tintByItemId={tintByItemId}
                 items={currentItems}
                 userItems={userItems}
+                resolvedItems={resolvedItems}
+                hiddenItemIds={hiddenItemIds}
                 onItemClick={handleItemClick}
+                onToggleItemVisibility={handleToggleItemVisibility}
                 isGenerating={isGenerating}
               />
             )}

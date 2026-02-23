@@ -1,6 +1,6 @@
 import { BodyZone, OutfitItem } from "./types";
 
-// Zone positions on mannequin (percentage-based)
+// Zone positions on mannequin (percentage-based) for chip placement
 export const ZONE_POSITIONS: Record<
   OutfitItem["body_zone"],
   { x: number; y: number }
@@ -92,6 +92,21 @@ export function getZoneFromDescription(
 }
 
 /**
+ * Return one or more zones for multi-zone garments (e.g. dress → torso + legs).
+ * For most items returns a single zone; use for overlay rendering and data model.
+ */
+export function getZonesFromDescription(description: string): BodyZone[] {
+  const desc = description.toLowerCase();
+  // Multi-zone: dress spans torso and legs
+  if (desc.includes("dress")) {
+    return ["torso", "legs"];
+  }
+  // Coat/jacket: torso only for now (future: arms)
+  const single = getZoneFromDescription(description);
+  return [single];
+}
+
+/**
  * Infer a body zone from an item's type and description (canonical logic for AI + UI).
  */
 export function inferBodyZoneFromItem(
@@ -126,16 +141,23 @@ export function getItemPosition(
   index: number,
   total: number
 ): { x: number; y: number } {
-  const base = ZONE_POSITIONS[item.body_zone];
+  return getChipPosition(item.body_zone, index, total);
+}
+
+/**
+ * Chip position by zone and index (for ResolvedItem chips)
+ */
+export function getChipPosition(
+  zone: BodyZone,
+  index: number,
+  total: number
+): { x: number; y: number } {
+  const base = ZONE_POSITIONS[zone];
   if (total === 1) return base;
 
   const offset = (index - (total - 1) / 2) * 8;
   return {
-    x:
-      base.x +
-      (item.body_zone === "torso" || item.body_zone === "legs" ? offset : 0),
-    y:
-      base.y +
-      (item.body_zone === "head" || item.body_zone === "feet" ? offset : 0),
+    x: base.x + (zone === "torso" || zone === "legs" ? offset : 0),
+    y: base.y + (zone === "head" || zone === "feet" ? offset : 0),
   };
 }

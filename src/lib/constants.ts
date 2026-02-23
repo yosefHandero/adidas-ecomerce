@@ -175,3 +175,46 @@ export const FALLBACK_QUERIES = {
     woman: "fashion outfit woman",
   },
 } as const;
+
+/**
+ * Zone overlay boxes for mannequin dressing (% values relative to wrapper).
+ * Aligns with base mannequin PNG (head, torso, legs, feet).
+ */
+export type ZoneOverlayBox = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+export const ZONE_OVERLAY_BOXES: Record<
+  "head" | "torso" | "legs" | "feet",
+  ZoneOverlayBox
+> = {
+  head: { top: 2, left: 36, width: 28, height: 18 },
+  torso: { top: 20, left: 22, width: 56, height: 32 },
+  legs: { top: 52, left: 28, width: 44, height: 36 },
+  feet: { top: 88, left: 30, width: 40, height: 14 },
+};
+
+/** Chip stack anchor per zone (%): position of the chip stack to the right of each zone */
+export const ZONE_CHIP_STACK_ANCHOR: Record<
+  "head" | "torso" | "legs" | "feet" | "accessories",
+  { left: number; top: number }
+> = {
+  head: { left: 68, top: 4 },
+  torso: { left: 82, top: 26 },
+  legs: { left: 76, top: 58 },
+  feet: { left: 74, top: 90 },
+  accessories: { left: 78, top: 26 },
+};
+
+/**
+ * Inpainting mask paths (public URLs).
+ * White = modifiable (clothing: head/torso/feet); black = protected.
+ * Regenerate with: npm run generate-masks
+ */
+export const MANNEQUIN_MASK_PATHS = {
+  man: "/man_base_mask.png",
+  woman: "/woman_base_mask.png",
+} as const;

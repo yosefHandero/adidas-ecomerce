@@ -4,15 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import {
   UserItem,
   OutfitPreferences,
-  Occasion,
-  Fit,
-  Weather,
-  Budget,
   OCCASIONS,
   FITS,
   WEATHERS,
   BUDGETS,
 } from "@/lib/types";
+import { CLOTHING } from "@/lib/clothingCatalog";
+import { ColorPicker } from "@/components/ColorPicker";
 
 export type MannequinModel = "man" | "woman";
 
@@ -20,6 +18,15 @@ interface OutfitInputPanelProps {
   userItems: UserItem[];
   preferences: OutfitPreferences;
   model: MannequinModel;
+  enabledClothes: Record<string, boolean>;
+  onEnabledClothesChange: (next: Record<string, boolean>) => void;
+  globalTint?: string;
+  onGlobalTintChange?: (hex: string | undefined) => void;
+  tintByItemId?: Record<string, string>;
+  onTintByItemIdChange?: (next: Record<string, string>) => void;
+  unmatchedItems?: string[];
+  onApplyOutfitText: (text: string) => void;
+  isApplyingOutfit?: boolean;
   onModelChange: (model: MannequinModel) => void;
   onItemsChange: (items: UserItem[]) => void;
   onPreferencesChange: (preferences: OutfitPreferences) => void;
@@ -31,6 +38,13 @@ export function OutfitInputPanel({
   userItems,
   preferences,
   model,
+  enabledClothes,
+  onEnabledClothesChange,
+  globalTint,
+  onGlobalTintChange,
+  unmatchedItems = [],
+  onApplyOutfitText,
+  isApplyingOutfit = false,
   onModelChange,
   onItemsChange,
   onPreferencesChange,
@@ -38,6 +52,7 @@ export function OutfitInputPanel({
   isGenerating,
 }: OutfitInputPanelProps) {
   const [newItemDescription, setNewItemDescription] = useState("");
+  const [outfitText, setOutfitText] = useState("");
   const [openDropdown, setOpenDropdown] = useState<"occasion" | "fit" | "weather" | "budget" | null>(null);
   const occasionRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<HTMLDivElement>(null);
@@ -137,6 +152,123 @@ export function OutfitInputPanel({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Outfit text → Apply to mannequin */}
+      <div className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-[var(--surface-2)] to-[var(--surface)] border border-[var(--border)] shadow-sm">
+        <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Quick outfit
+        </h3>
+        <p className="text-[10px] text-[var(--text-muted)] mb-2">e.g. green jacket, yellow pants with hat</p>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={outfitText}
+            onChange={(e) => setOutfitText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onApplyOutfitText(outfitText)}
+            placeholder="green jacket, yellow pants, hat"
+            className="premium-input flex-1 min-w-0 px-3 py-2 border border-[var(--border)] rounded-xl bg-[var(--surface-2)] text-[var(--text)] placeholder:text-[var(--text-muted)] text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => onApplyOutfitText(outfitText)}
+            disabled={!outfitText.trim() || isApplyingOutfit}
+            className="px-4 py-2 rounded-xl bg-[var(--primary)] text-[var(--on-primary)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--primary-hover)] transition-all shrink-0"
+          >
+            {isApplyingOutfit ? "Applying…" : "Apply"}
+          </button>
+        </div>
+        {unmatchedItems.length > 0 && (
+          <p className="text-[10px] text-[var(--text-muted)]">
+            Unmatched: {unmatchedItems.join(", ")}
+          </p>
+        )}
+      </div>
+
+      {/* Clothing toggles */}
+      <div className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-[var(--surface-2)] to-[var(--surface)] border border-[var(--border)] shadow-sm">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+            <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Clothing
+          </h3>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() =>
+                onEnabledClothesChange(
+                  Object.fromEntries(CLOTHING.map((c) => [c.id, false])),
+                )
+              }
+              className="px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]/40 transition-all"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const all: Record<string, boolean> = {};
+                CLOTHING.forEach((c) => { all[c.id] = true; });
+                onEnabledClothesChange(all);
+              }}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 hover:bg-[var(--primary)]/25 transition-all"
+            >
+              Enable all
+            </button>
+          </div>
+        </div>
+        <p className="text-[10px] text-[var(--text-muted)] mb-3">Toggle 3D pieces on the mannequin</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {CLOTHING.map((item) => {
+            const on = enabledClothes[item.id] ?? false;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  onEnabledClothesChange({
+                    ...enabledClothes,
+                    [item.id]: !on,
+                  });
+                }}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                  on
+                    ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 shadow-sm"
+                    : "bg-[var(--surface)]/80 border-[var(--border)] hover:border-[var(--text-muted)]/50"
+                }`}
+              >
+                <span
+                  className={`relative w-8 h-4 rounded-full flex-shrink-0 transition-colors ${
+                    on ? "bg-[var(--primary)]" : "bg-[var(--text-muted)]/40"
+                  }`}
+                  aria-hidden
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
+                      on ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+                <span className="text-xs font-medium text-[var(--text)] truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        {onGlobalTintChange && (
+          <div className="mt-3">
+            <ColorPicker
+              value={globalTint}
+              onChange={onGlobalTintChange}
+              label="Tint (shirt, jacket, pants, etc.)"
+              size="md"
+            />
+          </div>
+        )}
       </div>
 
       {/* Items Section */}

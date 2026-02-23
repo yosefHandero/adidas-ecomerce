@@ -14,13 +14,33 @@ export type Budget = (typeof BUDGETS)[number];
 export const VARIATION_NAMES = ["Minimal", "Street", "Elevated"] as const;
 export type VariationName = (typeof VARIATION_NAMES)[number];
 
-export const BODY_ZONES = ["head", "torso", "legs", "feet", "accessories"] as const;
+export const BODY_ZONES = [
+  "head",
+  "torso",
+  "legs",
+  "feet",
+  "accessories",
+] as const;
 export type BodyZone = (typeof BODY_ZONES)[number];
 
 export interface UserItem {
   id: string;
   description: string;
   imageUrl?: string;
+}
+
+export type ColorConfidence = "high" | "low";
+
+/** Resolved user item for mannequin overlay/chip rendering (client-only) */
+export interface ResolvedItem {
+  id: string;
+  label: string;
+  zone: BodyZone;
+  color: string;
+  confidence: ColorConfidence;
+  visible: boolean;
+  /** Original index in userItems (most recent = higher index) for "last visible wins" */
+  itemIndex: number;
 }
 
 export interface OutfitItem {
